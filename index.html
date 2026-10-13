@@ -281,32 +281,30 @@ body.con-fondo .stat,body.con-fondo .who{backdrop-filter:blur(4px)}
 <body>
 <!-- Pantalla de carga de la app web (armar-web.ps1 la pega justo después de <body>).
      Se ve desde el primer instante y se quita sola cuando la app ya mostró el tablero o el formulario de entrada.
-     Tiene dos composiciones con el mismo logo y la misma barra: vertical (celular) y apaisada (computador). -->
+     Tiene dos composiciones: vertical (celular), armada con piezas del arte, y apaisada (computador), que es
+     el arte de escritorio completo con una barra viva puesta exactamente encima de la que trae dibujada. -->
 <style>
-#carga{position:fixed;inset:0;z-index:100;background:#fefefe;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;transition:opacity .45s ease}
+#carga{--p:0%;position:fixed;inset:0;z-index:100;background:#fefefe;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;transition:opacity .45s ease}
 #carga.fuera{opacity:0;pointer-events:none}
 #carga img{display:block;user-select:none;-webkit-user-drag:none}
-#carga .c-logo{position:relative;width:min(80vw,440px);height:auto;animation:c-entra .6s ease-out both}
-#carga .c-barra{--ancho:min(56vw,310px);position:relative;margin-top:26px;width:var(--ancho);height:12px;border-radius:999px;background:#e8e8e8;overflow:hidden}
-/* el degradado mide lo que mide la barra completa, así los colores no se aprietan mientras se llena */
-#carga .c-barra i{display:block;height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,#0d57c6,#b5179e 20%,#ff0a6c 34%,#ff3b1f 46%,#ffe600 66%,#8cc63f 84%,#2ea043) 0 0/var(--ancho) 100% no-repeat;transition:width .35s ease-out}
-#carga .c-texto{display:none;position:relative;margin-top:18px;font:500 12px system-ui,-apple-system,"Segoe UI",sans-serif;letter-spacing:.55em;text-indent:.55em;color:#8b8b8b}
+/* la barra: el degradado ocupa siempre todo el ancho y se va destapando de izquierda a derecha según --p */
+#carga .c-barra{position:relative;border-radius:999px;background:#e8e8e8;overflow:hidden}
+#carga .c-barra i{display:block;width:100%;height:100%;background:linear-gradient(90deg,#0d57c6,#b5179e 20%,#ff0a6c 34%,#ff3b1f 46%,#ffe600 66%,#8cc63f 84%,#2ea043);clip-path:inset(0 calc(100% - var(--p)) 0 0 round 999px);transition:clip-path .35s ease-out}
 
-/* vertical (celular): marca de agua arriba y ondas abajo, a todo el ancho */
+/* vertical (celular): marca de agua arriba, ondas abajo, logo y barra al centro */
 #carga .c-fondo{position:absolute;top:0;left:0;width:100%;max-height:40vh;object-fit:cover;object-position:top}
 #carga .c-ondas{position:absolute;bottom:0;left:0;width:100%;max-height:38vh;object-fit:cover;object-position:bottom}
-#carga .c-esq{display:none}
+#carga .c-logo{position:relative;width:min(80vw,440px);height:auto;animation:c-entra .6s ease-out both}
+#carga .c-movil{margin-top:26px;width:min(56vw,310px);height:12px}
+#carga .c-pc{display:none}
 
-/* apaisada (computador): cintas de colores en dos esquinas, logo más grande y el letrero "CARGANDO..." */
+/* apaisada (computador): el arte completo cubre la pantalla sin deformarse (se recorta lo que sobre por los lados
+   o por arriba y abajo), y la barra viva va en el mismo sitio que la dibujada, medido sobre el arte de 1672 x 941 */
 @media (orientation:landscape){
-  #carga .c-fondo,#carga .c-ondas{display:none}
-  /* cada esquina se desvanece hacia el centro para fundirse con el fondo blanco */
-  #carga .c-esq{display:block;position:absolute;width:min(39.5vw,72vh);height:auto}
-  #carga .c-esq.arriba{top:0;left:0;-webkit-mask-image:linear-gradient(135deg,#000 56%,transparent 74%);mask-image:linear-gradient(135deg,#000 56%,transparent 74%)}
-  #carga .c-esq.abajo{bottom:0;right:0;-webkit-mask-image:linear-gradient(315deg,#000 56%,transparent 74%);mask-image:linear-gradient(315deg,#000 56%,transparent 74%)}
-  #carga .c-logo{width:min(44vw,78vh,640px)}
-  #carga .c-barra{--ancho:min(37vw,66vh,540px);height:14px;margin-top:30px}
-  #carga .c-texto{display:block}
+  #carga .c-fondo,#carga .c-ondas,#carga .c-logo,#carga .c-movil{display:none}
+  #carga .c-pc{display:block;position:absolute;left:50%;top:50%;width:max(100vw,calc(100vh * 1672 / 941));aspect-ratio:1672 / 941;transform:translate(-50%,-50%)}
+  #carga .c-pc img{width:100%;height:100%}
+  #carga .c-pc .c-barra{position:absolute;left:31.46%;top:67.38%;width:37.08%;height:3.08%;background:#eaeaea;box-shadow:0 0 0 1px #fff}
 }
 @keyframes c-entra{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){#carga .c-logo{animation:none}#carga,#carga .c-barra i{transition:none}}
@@ -314,17 +312,18 @@ body.con-fondo .stat,body.con-fondo .who{backdrop-filter:blur(4px)}
 <div id="carga" role="status" aria-label="Cargando">
   <img class="c-fondo" src="carga-fondo.jpg" alt="">
   <img class="c-ondas" src="carga-ondas.jpg" alt="">
-  <img class="c-esq arriba" src="carga-pc-arriba.jpg" alt="">
-  <img class="c-esq abajo" src="carga-pc-abajo.jpg" alt="">
   <img class="c-logo" src="carga-logo.png" alt="arpi artes gráficas">
-  <div class="c-barra"><i id="carga-barra"></i></div>
-  <div class="c-texto" aria-hidden="true">CARGANDO...</div>
+  <div class="c-barra c-movil"><i></i></div>
+  <div class="c-pc">
+    <img src="carga-pc.jpg" alt="arpi artes gráficas">
+    <div class="c-barra"><i></i></div>
+  </div>
 </div>
 <script>
 (function () {
   var MINIMO = 1500;   // lo que dura como mínimo, para que no sea un parpadeo
   var MAXIMO = 9000;   // pase lo que pase, a los 9 segundos se quita
-  var inicio = Date.now(), caja = document.getElementById('carga'), barra = document.getElementById('carga-barra');
+  var inicio = Date.now(), caja = document.getElementById('carga');
   var avance = 0, fin = false;
 
   // la app ya está lista cuando muestra el formulario de entrada o el menú del tablero
@@ -332,10 +331,11 @@ body.con-fondo .stat,body.con-fondo .who{backdrop-filter:blur(4px)}
     var login = document.getElementById('login'), menu = document.getElementById('side');
     return (login && !login.hidden) || (menu && !menu.hidden) || !!document.getElementById('fallo');
   }
+  function llenar(p) { caja.style.setProperty('--p', p + '%'); }
   function quitar() {
     if (fin) return;
     fin = true;
-    barra.style.width = '100%';
+    llenar(100);
     setTimeout(function () {
       caja.classList.add('fuera');
       setTimeout(function () { caja.remove(); }, 500);
@@ -345,7 +345,7 @@ body.con-fondo .stat,body.con-fondo .who{backdrop-filter:blur(4px)}
     var t = Date.now() - inicio;
     // la barra se va llenando hasta el 85 % mientras espera; el último tramo es cuando la app está lista
     avance = Math.min(85, avance + (85 - avance) * 0.12 + 1);
-    if (!fin) barra.style.width = avance + '%';
+    if (!fin) llenar(avance);
     if ((lista() && t >= MINIMO) || t >= MAXIMO) { clearInterval(reloj); quitar(); }
   }, 120);
 })();
