@@ -231,6 +231,7 @@ body.side-open .side{transform:none;box-shadow:0 0 40px rgba(0,0,0,.15)}
 .side-bottom{border-top:1px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:10px}
 .side-bottom .who{padding:0 4px}
 .side-bottom .btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%}
+#avisos[data-on="1"]{color:var(--ok);border-color:var(--ok)}
 .side-bottom svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .side-scrim{position:fixed;inset:0;background:rgba(10,15,20,.4);z-index:8}
 @media (min-width:900px){
@@ -375,6 +376,7 @@ body.con-fondo .stat,body.con-fondo .who{backdrop-filter:blur(4px)}
   </nav>
   <div class="side-bottom">
     <div class="who"><span id="who-name"></span><span class="rol" id="who-rol"></span></div>
+    <button class="btn" id="avisos" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 17v-6a6 6 0 0 1 12 0v6l2 2H4z M10 21h4"/></svg><span>Activar avisos</span></button>
     <button class="btn" id="salir"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h4v16h-4 M10 8l-4 4 4 4 M6 12h10"/></svg>Cerrar sesión</button>
   </div>
 </aside>
@@ -497,7 +499,7 @@ const llamar=EN_GOOGLE
   :async(fn,a)=>{const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({fn:fn,args:a})});
     if(!r.ok)throw new Error("HTTP "+r.status);const j=await r.json();if(!j.ok)throw new Error(j.error||"Error del servidor");return j.data};
 // Mientras hay un guardado en camino no se aceptan consultas: traerían los datos de antes y desharían lo que se acaba de tocar.
-const SOLO_LEEN=["login","getData","getInventario","getReportes"];
+const SOLO_LEEN=["login","getData","getInventario","getReportes","pushClave","pushSuscribir","pushQuitar"];
 let enVuelo=0,cambios=0;
 // Los guardados salen en fila, uno detrás de otro. Si salieran todos a la vez, Google podía atender primero el último:
 // al tocar rápido Preprensa, Impresión y Acabados, la orden terminaba guardada en Preprensa y se devolvía sola.
@@ -768,6 +770,7 @@ function showApp(){
   setView(ls.get("vista")||"ordenes");
   $("who-name").innerHTML=`<b>${esc(S.yo.nombre)}</b>`;$("who-rol").textContent=isGer()?"Gerente":"Operario";
   $("bar-ger").hidden=!isGer();$("bar-fun").hidden=isGer();
+  retomarAvisos();
 }
 $("login").onsubmit=async e=>{e.preventDefault();
   const u=$("l-user").value.trim(),p=$("l-pass").value;$("l-ok").disabled=true;$("l-err").textContent="";
@@ -922,7 +925,49 @@ function renderRep(){
   repBar();
 }
 
-$("salir").onclick=()=>{S.user=S.pass="";S.rev="";ls.set("u","");ls.set("p","");ls.set("borrador","");ls.set("cache","");ls.set("fila","");S.orders=[];showLogin()};
+/* ---------- avisos al celular ---------- */
+// Solo existen en la app web instalable: dentro de Google la página no puede recibir notificaciones.
+const PUEDE_AVISOS=!EN_GOOGLE&&"serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window;
+const aBytes=t=>Uint8Array.from(atob(t.replace(/-/g,"+").replace(/_/g,"/")+"===".slice((t.length+3)%4)),c=>c.charCodeAt(0));
+// la pieza que recibe los avisos tarda un momento en quedar lista; si a los 8 segundos no está, se avisa en vez de quedar esperando
+const swListo=()=>Promise.race([navigator.serviceWorker.ready,new Promise((ok,mal)=>setTimeout(()=>mal(new Error("La app todavía no está lista para avisos")),8000))]);
+const miSuscripcion=async()=>(await swListo()).pushManager.getSubscription();
+const mismaLlave=(s,llave)=>{const k=s.options&&s.options.applicationServerKey;if(!k)return true;const a=new Uint8Array(k);return a.length===llave.length&&a.every((x,i)=>x===llave[i])};
+async function pintarAvisos(){
+  const b=$("avisos");if(!PUEDE_AVISOS||!S.yo){b.hidden=true;return}
+  b.hidden=false;let on=false;try{on=Notification.permission==="granted"&&!!(await miSuscripcion())}catch(e){}
+  b.dataset.on=on?"1":"";b.querySelector("span").textContent=on?"Avisos activados":"Activar avisos";
+}
+async function activarAvisos(){
+  if(Notification.permission==="denied"){toast("Los avisos están bloqueados en este aparato. Permítelos en los ajustes del sitio y vuelve a tocar.");return false}
+  if(await Notification.requestPermission()!=="granted"){toast("Sin ese permiso no se pueden mostrar avisos.");return false}
+  const llave=aBytes(await api("pushClave",S.user,S.pass));
+  const reg=await swListo();
+  let s=await reg.pushManager.getSubscription();
+  if(s&&!mismaLlave(s,llave)){await s.unsubscribe();s=null} // hecha con otra llave: ya no sirve
+  if(!s)s=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:llave});
+  await api("pushSuscribir",S.user,S.pass,s.endpoint);
+  return true;
+}
+$("avisos").onclick=async()=>{const b=$("avisos");b.disabled=true;
+  try{
+    if(b.dataset.on){const s=await miSuscripcion();if(s){await api("pushQuitar",S.user,S.pass,s.endpoint).catch(()=>{});await s.unsubscribe()}toast("Avisos desactivados en este aparato")}
+    else if(await activarAvisos())toast("Listo: este aparato avisa cuando hay orden nueva o cambio de estado");
+  }catch(e){toast("No se pudieron cambiar los avisos. Revisa la conexión e intenta de nuevo.")}
+  b.disabled=false;pintarAvisos()};
+// al entrar: si este aparato ya tenía avisos, quedan a nombre de quien entró
+async function retomarAvisos(){
+  pintarAvisos();
+  if(!PUEDE_AVISOS||Notification.permission!=="granted")return;
+  try{const s=await miSuscripcion();if(s)await api("pushSuscribir",S.user,S.pass,s.endpoint)}catch(e){}
+}
+// al salir: este aparato deja de recibir avisos hasta que alguien vuelva a entrar
+function soltarAvisos(){
+  if(!PUEDE_AVISOS)return;const u=S.user,p=S.pass;
+  miSuscripcion().then(s=>{if(s)llamar("pushQuitar",[u,p,s.endpoint]).catch(()=>{})}).catch(()=>{});
+}
+
+$("salir").onclick=()=>{soltarAvisos();S.user=S.pass="";S.rev="";ls.set("u","");ls.set("p","");ls.set("borrador","");ls.set("cache","");ls.set("fila","");S.orders=[];showLogin()};
 
 /* ---------- datos ---------- */
 // completo=true pide todo aunque el servidor diga que no hay cambios (al abrir y cada pocos minutos)
@@ -1304,7 +1349,7 @@ fondo(FONDO_URL,FONDO_MOVIL_URL);
 </script>
 <script>
 (function(){
-  var LENS=[0, 88, 221, 200, 39, 41, 24, 104, 23, 102, 74, 99, 109, 40, 126, 40, 103, 86, 163, 156, 103, 129, 82, 22, 110, 150, 141, 128, 66, 24, 119, 112, 34, 123, 125, 55, 168, 121, 130, 29, 100, 34, 49, 76, 13, 1, 25, 37, 21, 35, 26, 59, 68, 37, 3, 18, 1, 71, 70, 53, 107, 11, 26, 18, 85, 211, 33, 23, 128, 107, 1, 86, 23, 64, 55, 25, 63, 96, 72, 5, 1, 117, 122, 19, 54, 56, 43, 111, 155, 118, 139, 201, 0, 88, 181, 144, 28, 23, 115, 109, 99, 247, 55, 10, 1, 23, 18, 39, 42, 65, 1, 0, 50, 64, 205, 382, 0, 27, 83, 25, 46, 70, 48, 18, 285, 46, 1, 0, 28, 21, 93, 60, 28, 43, 85, 90, 80, 90, 68, 27, 78, 79, 58, 35, 188, 102, 306, 12, 3, 31, 59, 96, 95, 5, 107, 111, 172, 79, 21, 185, 1, 128, 128, 90, 226, 0, 75, 20, 16, 91, 168, 56, 1, 77, 21, 33, 145, 54, 110, 59, 139, 53, 55, 62, 27, 105, 137, 72, 12, 27, 53, 133, 259, 77, 75, 139, 279, 12, 189, 61, 69, 95, 125, 158, 46, 71, 192, 49, 58, 69, 185, 7, 118, 5, 21, 1, 39, 26, 22, 228, 82, 4, 1, 28, 50, 60, 81, 32, 1, 35, 51, 77, 84, 28, 158, 32, 53, 2, 0, 0, 21, 22, 57, 103, 35, 72, 107, 60, 146, 157, 187, 43, 1, 38, 0, 55, 94, 87, 22, 86, 37, 67, 212, 288, 177, 115, 10, 1, 82, 56, 54, 109, 125, 80, 103, 22, 25, 32, 49, 101, 166, 190, 17, 4, 234, 1, 0, 34, 220, 208, 376, 19, 71, 61, 45, 31, 38, 109, 59, 1, 49, 105, 240, 168, 2, 45, 146, 170, 116, 43, 184, 159, 75, 248, 20, 75, 145, 29, 72, 108, 117, 95, 106, 75, 31, 30, 1, 0, 38, 24, 30, 18, 116, 250, 100, 14, 1, 21, 25, 57, 156, 21, 63, 145, 92, 84, 129, 125, 102, 298, 33, 192, 577, 92, 22, 59, 58, 99, 150, 53, 91, 71, 142, 190, 52, 83, 65, 51, 55, 288, 44, 26, 259, 24, 138, 6, 5, 1, 69, 27, 168, 140, 22, 33, 156, 1, 137, 51, 83, 28, 254, 32, 51, 2, 0, 36, 105, 25, 142, 14, 1, 18, 48, 65, 74, 51, 56, 85, 1, 108, 30, 48, 74, 63, 160, 85, 2, 141, 31, 63, 217, 51, 167, 37, 2, 21, 41, 57, 129, 21, 86, 76, 35, 122, 133, 171, 216, 103, 61, 22, 59, 50, 145, 44, 26, 259, 24, 148, 6, 5, 11, 1, 0, 164, 0, 33, 101, 14, 30, 18, 91, 19, 6, 71, 161, 55, 20, 109, 114, 17, 199, 44, 5, 18, 251, 11, 1, 14, 156, 134, 67, 0, 34, 18, 18, 20, 20, 55, 141, 25, 59, 196, 153, 25, 55, 246, 250, 44, 37, 153, 92, 182, 16, 188, 128, 22, 23, 105, 1, 94, 64, 34, 17, 112, 100, 50, 43, 57, 32, 1, 65, 63, 116, 88, 307, 260, 19, 24, 113, 195, 112, 1, 17, 89, 50, 76, 63, 55, 173, 105, 124, 45, 90, 83, 525, 24, 57, 528, 14, 1, 0, 33, 144, 86, 85, 75, 108, 0, 25, 21, 141, 157, 18, 156, 196, 332, 39, 389, 125, 121, 93, 181, 173, 205, 124, 93, 91, 0, 41, 122, 105, 0, 35, 431, 107, 94, 75, 106, 119, 45, 47, 0, 44, 101, 107, 0, 38, 100, 107, 95, 0, 35, 114, 108, 132, 43, 200, 12, 35, 61, 346, 48, 310, 138, 76, 82, 96, 218, 139, 117, 54, 205, 161, 183, 18, 157, 168, 40, 335, 89, 130, 126, 52, 24, 150, 125, 136, 206, 51, 143, 38, 157, 47, 22, 109, 35, 23, 30, 209, 61, 4, 1, 93, 24, 51, 54, 44, 51, 52, 98, 102, 26, 40, 81, 38, 51, 61, 115, 7, 103, 421, 220, 140, 89, 96, 8, 17, 51, 245, 19, 114, 318, 8, 212, 162, 53, 34, 15, 25, 24, 70, 72, 53, 118, 155, 88, 40, 42, 219, 51, 34, 4, 120, 55, 161, 81, 40, 67, 104, 234, 102, 26, 330, 230, 46, 10, 250, 5, 41, 53, 4, 1, 31, 51, 59, 131, 139, 115, 135, 1, 25, 90, 65, 55, 18, 105, 135, 161, 137, 5, 1, 24, 63, 50, 61, 104, 124, 1, 74, 54, 56, 46, 71, 94, 105, 27, 61, 67, 11, 1, 81, 34, 65, 22, 64, 113, 12, 1, 56, 92, 31, 42, 32, 99, 124, 14, 62, 19, 164, 180, 71, 3, 68, 295, 10, 114, 438, 3, 39, 150, 1, 123, 26, 67, 51, 26, 147, 63, 114, 4, 84, 139, 52, 96, 183, 83, 68, 109, 30, 100, 174, 1, 121, 34, 0, 36, 33, 11, 36, 128, 32, 105, 116, 65, 31, 124, 56, 18, 41, 116, 104, 5, 0];
+  var LENS=[0, 88, 221, 200, 39, 41, 24, 104, 23, 102, 74, 99, 109, 40, 126, 40, 103, 86, 163, 156, 103, 129, 82, 22, 110, 150, 141, 128, 107, 24, 119, 112, 34, 123, 125, 55, 168, 121, 130, 29, 100, 34, 49, 76, 13, 1, 25, 37, 21, 35, 26, 59, 68, 37, 3, 18, 1, 71, 70, 53, 107, 11, 26, 18, 85, 211, 33, 23, 128, 107, 1, 86, 23, 64, 55, 25, 63, 96, 72, 5, 1, 117, 122, 19, 54, 56, 43, 111, 155, 118, 139, 201, 0, 88, 181, 144, 28, 23, 115, 109, 99, 247, 55, 10, 1, 23, 18, 39, 42, 65, 1, 0, 50, 64, 205, 382, 0, 27, 83, 25, 46, 70, 48, 18, 285, 46, 1, 0, 28, 21, 93, 60, 28, 43, 85, 90, 80, 90, 68, 27, 78, 79, 58, 35, 188, 102, 306, 12, 3, 31, 59, 96, 95, 5, 107, 111, 172, 79, 21, 185, 1, 128, 128, 90, 226, 0, 75, 20, 16, 91, 168, 56, 1, 77, 21, 33, 145, 54, 110, 59, 139, 53, 55, 62, 27, 105, 137, 72, 12, 27, 53, 133, 259, 77, 75, 139, 279, 12, 189, 61, 69, 95, 125, 158, 46, 71, 192, 49, 58, 69, 185, 7, 118, 5, 21, 1, 39, 26, 22, 228, 82, 4, 1, 28, 50, 60, 81, 32, 1, 35, 51, 77, 84, 28, 158, 32, 53, 2, 0, 0, 21, 22, 57, 103, 35, 72, 107, 60, 146, 157, 187, 43, 1, 38, 0, 55, 94, 87, 22, 86, 37, 67, 212, 288, 177, 115, 10, 1, 82, 56, 54, 109, 125, 80, 103, 22, 25, 32, 49, 101, 166, 190, 17, 4, 234, 1, 0, 34, 220, 208, 376, 19, 71, 61, 45, 31, 38, 109, 59, 18, 1, 49, 105, 240, 168, 2, 45, 146, 170, 116, 43, 184, 159, 75, 248, 20, 75, 145, 29, 72, 108, 117, 95, 106, 75, 31, 30, 1, 0, 38, 24, 30, 18, 116, 250, 100, 14, 1, 21, 25, 57, 156, 21, 63, 145, 92, 84, 129, 125, 102, 298, 33, 192, 577, 92, 22, 59, 58, 99, 150, 53, 91, 71, 142, 190, 52, 83, 65, 51, 55, 288, 44, 26, 259, 24, 138, 6, 5, 1, 69, 27, 168, 140, 22, 33, 156, 1, 137, 51, 83, 28, 254, 32, 51, 2, 0, 36, 105, 25, 142, 14, 1, 18, 48, 65, 74, 51, 56, 85, 1, 108, 30, 48, 74, 63, 160, 85, 2, 141, 31, 63, 217, 51, 167, 37, 2, 21, 41, 57, 129, 21, 86, 76, 35, 122, 133, 171, 216, 103, 61, 22, 59, 50, 145, 44, 26, 259, 24, 148, 6, 5, 11, 1, 0, 45, 101, 111, 124, 132, 167, 77, 185, 30, 68, 110, 100, 1, 31, 162, 124, 59, 28, 48, 96, 93, 54, 14, 1, 66, 6, 187, 111, 95, 35, 77, 31, 17, 63, 103, 1, 82, 24, 50, 100, 1, 0, 179, 0, 33, 101, 14, 30, 18, 91, 19, 6, 71, 161, 55, 20, 109, 114, 17, 199, 44, 5, 18, 251, 11, 1, 14, 156, 134, 67, 0, 34, 18, 18, 20, 20, 55, 141, 25, 59, 196, 153, 25, 55, 246, 250, 44, 37, 153, 92, 182, 16, 188, 128, 22, 23, 105, 1, 94, 64, 34, 17, 112, 100, 50, 43, 57, 32, 1, 65, 63, 116, 88, 307, 260, 19, 24, 113, 195, 112, 1, 17, 89, 50, 76, 63, 55, 173, 105, 124, 45, 90, 83, 525, 24, 57, 528, 14, 1, 0, 33, 144, 86, 85, 75, 108, 0, 25, 21, 141, 157, 18, 156, 196, 332, 39, 389, 125, 121, 93, 181, 173, 205, 124, 93, 91, 0, 41, 122, 105, 0, 35, 431, 107, 94, 75, 106, 119, 45, 47, 0, 44, 101, 107, 0, 38, 100, 107, 95, 0, 35, 114, 108, 132, 43, 200, 12, 35, 61, 346, 48, 310, 138, 76, 82, 96, 218, 139, 117, 54, 205, 161, 183, 18, 157, 168, 40, 335, 89, 130, 126, 52, 24, 150, 125, 136, 206, 51, 143, 38, 157, 47, 22, 109, 35, 23, 30, 209, 61, 4, 1, 93, 24, 51, 54, 44, 51, 52, 98, 102, 26, 40, 81, 38, 51, 61, 115, 7, 103, 421, 220, 140, 89, 96, 8, 17, 51, 245, 19, 114, 318, 8, 212, 162, 53, 34, 15, 25, 24, 70, 72, 53, 118, 155, 88, 40, 42, 219, 51, 34, 4, 120, 55, 161, 81, 40, 67, 104, 234, 102, 26, 330, 230, 46, 10, 250, 5, 41, 53, 4, 1, 31, 51, 59, 131, 139, 115, 135, 1, 25, 90, 65, 55, 18, 105, 135, 161, 137, 5, 1, 24, 63, 50, 61, 104, 124, 1, 74, 54, 56, 46, 71, 94, 105, 27, 61, 67, 11, 1, 81, 34, 65, 22, 64, 113, 12, 1, 56, 92, 31, 42, 32, 99, 124, 14, 62, 19, 164, 180, 71, 3, 68, 295, 10, 114, 438, 3, 39, 150, 1, 123, 26, 67, 51, 26, 147, 63, 114, 4, 84, 139, 52, 96, 183, 83, 68, 109, 30, 100, 174, 1, 121, 34, 0, 36, 33, 11, 36, 128, 32, 105, 116, 65, 31, 124, 56, 18, 41, 116, 104, 5, 0];
   var el=document.getElementById("app-src"),txt=el?el.textContent:"";
   try{(0,eval)(txt)}catch(e){
     var ls=txt.split("\n"),msg=e.name+": "+e.message;
