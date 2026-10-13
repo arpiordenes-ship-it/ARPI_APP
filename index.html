@@ -277,6 +277,58 @@ body.con-fondo .stat,body.con-fondo .who{backdrop-filter:blur(4px)}
 </style>
 </head>
 <body>
+<!-- Pantalla de carga de la app web (armar-web.ps1 la pega justo después de <body>).
+     Se ve desde el primer instante y se quita sola cuando la app ya mostró el tablero o el formulario de entrada. -->
+<style>
+#carga{position:fixed;inset:0;z-index:100;background:#fefefe;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;transition:opacity .45s ease}
+#carga.fuera{opacity:0;pointer-events:none}
+#carga img{display:block;user-select:none;-webkit-user-drag:none}
+/* marca de agua arriba y ondas abajo: ocupan todo el ancho; en pantallas anchas se limitan en alto para no tapar el logo */
+#carga .c-fondo{position:absolute;top:0;left:0;width:100%;max-height:40vh;object-fit:cover;object-position:top}
+#carga .c-ondas{position:absolute;bottom:0;left:0;width:100%;max-height:38vh;object-fit:cover;object-position:bottom}
+#carga .c-logo{position:relative;width:min(80vw,440px);height:auto;animation:c-entra .6s ease-out both}
+#carga .c-barra{position:relative;margin-top:26px;width:min(56vw,310px);height:12px;border-radius:999px;background:#e8e8e8;overflow:hidden}
+/* el degradado mide lo que mide la barra completa, así los colores no se aprietan mientras se llena */
+#carga .c-barra i{display:block;height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,#0d57c6,#b5179e 20%,#ff0a6c 34%,#ff3b1f 46%,#ffe600 66%,#8cc63f 84%,#2ea043) 0 0/min(56vw,310px) 100% no-repeat;transition:width .35s ease-out}
+@keyframes c-entra{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){#carga .c-logo{animation:none}#carga,#carga .c-barra i{transition:none}}
+</style>
+<div id="carga" role="status" aria-label="Cargando">
+  <img class="c-fondo" src="carga-fondo.jpg" alt="">
+  <img class="c-ondas" src="carga-ondas.jpg" alt="">
+  <img class="c-logo" src="carga-logo.png" alt="arpi artes gráficas">
+  <div class="c-barra"><i id="carga-barra"></i></div>
+</div>
+<script>
+(function () {
+  var MINIMO = 1500;   // lo que dura como mínimo, para que no sea un parpadeo
+  var MAXIMO = 9000;   // pase lo que pase, a los 9 segundos se quita
+  var inicio = Date.now(), caja = document.getElementById('carga'), barra = document.getElementById('carga-barra');
+  var avance = 0, fin = false;
+
+  // la app ya está lista cuando muestra el formulario de entrada o el menú del tablero
+  function lista() {
+    var login = document.getElementById('login'), menu = document.getElementById('side');
+    return (login && !login.hidden) || (menu && !menu.hidden) || !!document.getElementById('fallo');
+  }
+  function quitar() {
+    if (fin) return;
+    fin = true;
+    barra.style.width = '100%';
+    setTimeout(function () {
+      caja.classList.add('fuera');
+      setTimeout(function () { caja.remove(); }, 500);
+    }, 320);
+  }
+  var reloj = setInterval(function () {
+    var t = Date.now() - inicio;
+    // la barra se va llenando hasta el 85 % mientras espera; el último tramo es cuando la app está lista
+    avance = Math.min(85, avance + (85 - avance) * 0.12 + 1);
+    if (!fin) barra.style.width = avance + '%';
+    if ((lista() && t >= MINIMO) || t >= MAXIMO) { clearInterval(reloj); quitar(); }
+  }, 120);
+})();
+</script>
 <aside class="side" id="side" hidden>
   <div class="side-top">
     <img class="side-logo" src="https://drive.google.com/thumbnail?id=12JF9RHsQWDXYZuvryNgmN9hO0NdupnkB&sz=w200" alt="">
