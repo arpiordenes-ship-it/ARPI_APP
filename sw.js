@@ -2,8 +2,9 @@
 // Regla: la página siempre se pide primero a internet (así un cambio publicado se ve al abrir);
 // si no hay conexión, se usa la última copia guardada. Las llamadas al servidor de Google
 // (guardar, consultar) nunca se guardan aquí: esas las maneja la propia app.
-const COPIA = 'ordenes-v3';
-const BASE = ['./', 'manifest.webmanifest', 'icono-192.png', 'icono-512.png', 'carga-logo.png', 'carga-ondas.jpg', 'carga-fondo.jpg', 'fondo-movil.jpg'];
+const COPIA = 'ordenes-v4';
+const BASE = ['./', 'manifest.webmanifest', 'icono-192.png', 'icono-512.png', 'carga-logo.png', 'carga-ondas.jpg', 'carga-fondo.jpg',
+  'carga-pc-arriba.jpg', 'carga-pc-abajo.jpg', 'fondo-movil.jpg'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(COPIA).then(c => c.addAll(BASE)).then(() => self.skipWaiting()));
