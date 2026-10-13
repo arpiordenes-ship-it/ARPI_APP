@@ -2,7 +2,7 @@
 // Regla: la página siempre se pide primero a internet (así un cambio publicado se ve al abrir);
 // si no hay conexión, se usa la última copia guardada. Las llamadas al servidor de Google
 // (guardar, consultar) nunca se guardan aquí: esas las maneja la propia app.
-const COPIA = 'ordenes-v5';
+const COPIA = 'ordenes-v6';
 const BASE = ['./', 'manifest.webmanifest', 'icono-192.png', 'icono-512.png', 'carga-logo.png', 'carga-ondas.jpg', 'carga-fondo.jpg',
   'carga-pc.jpg', 'fondo-movil.jpg'];
 
@@ -21,8 +21,10 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const pedido = e.request;
   if (pedido.method !== 'GET' || new URL(pedido.url).origin !== self.location.origin) return;
+  // 'no-cache' obliga a preguntarle al servidor si hay versión nueva. Sin esto el navegador reutilizaba
+  // su propia copia hasta 10 minutos (lo que indica GitHub) y un cambio recién publicado no se veía.
   e.respondWith(
-    fetch(pedido)
+    fetch(pedido, { cache: 'no-cache' })
       .then(respuesta => {
         if (respuesta.ok) {
           const copia = respuesta.clone();

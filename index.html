@@ -1319,7 +1319,19 @@ fondo(FONDO_URL,FONDO_MOVIL_URL);
 // y ofrece el botón "Instalar app" cuando el navegador lo permite.
 (function () {
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+    // Si ya había una versión instalada y llega otra, la página se recarga sola una vez para mostrarla,
+    // salvo que haya una orden abierta o un formulario a medio llenar: ahí espera a la próxima apertura.
+    var habiaVersion = !!navigator.serviceWorker.controller, recargada = false;
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      var panel = document.getElementById('scrim');
+      if (!habiaVersion || recargada || (panel && !panel.hidden)) return;
+      recargada = true;
+      location.reload();
+    });
+    window.addEventListener('load', function () {
+      // updateViaCache 'none': el navegador siempre revisa en el servidor si este archivo cambió
+      navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(function () {});
+    });
   }
   var oferta = null;
   window.addEventListener('beforeinstallprompt', function (e) {
