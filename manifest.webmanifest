@@ -1,0 +1,17 @@
+{
+  "name": "Órdenes de Producción",
+  "short_name": "Órdenes",
+  "description": "Órdenes de producción del taller: tablero, inventario de papel, clientes y reportes.",
+  "lang": "es",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f3f5f6",
+  "theme_color": "#16202a",
+  "icons": [
+    { "src": "icono-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icono-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icono-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
