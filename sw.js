@@ -1,10 +1,10 @@
 // Hace tres cosas: que la app abra aunque no haya señal, que las versiones nuevas lleguen solas
 // y que el aparato muestre los avisos de órdenes aunque la app esté cerrada.
-const COPIA = 'ordenes-v13';
+const COPIA = 'ordenes-v14';
 const BASE = ['./', 'manifest.webmanifest', 'icono-192.png', 'icono-512.png', 'carga-logo.png', 'carga-ondas.jpg', 'carga-fondo.jpg',
   'carga-pc.jpg', 'fondo-movil.jpg'];
 // dirección del script de Google; la escribe armar-web.ps1
-const SERVIDOR = 'https://script.google.com/macros/s/AKfycbyIJ0SqdImf3p2uElSWX9ctwhrozxNtXgnYlw7DmsYhUIpHK3RGoS-24Qxk2weyKz9W/exec';
+const SERVIDOR = 'https://script.google.com/macros/s/AKfycbzmECHKjmJVxu1VdJ6Qxx7VGpRKigCETudDzRpq7JkmQsP-D2hKrjV0cHH3Ok-GF3JE4w/exec';
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(COPIA).then(c => c.addAll(BASE)).then(() => self.skipWaiting()));
