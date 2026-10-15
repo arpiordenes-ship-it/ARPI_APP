@@ -210,6 +210,8 @@ span.ach.on{cursor:default}
 @media (max-width:560px){.plant{grid-template-columns:minmax(0,1fr) auto}.plant [data-usar]{grid-column:1/-1}}
 .cli-ords{display:flex;flex-direction:column;gap:6px;padding:10px}
 .stock{font-size:.85rem;color:var(--muted);min-height:1.2em}
+#f-quim{flex-basis:100%;width:100%;margin-top:8px;display:grid;gap:2px}#f-quim[hidden]{display:none}
+.enlace{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}.enlace label{flex-direction:row;align-items:center;gap:6px;font-size:.78rem}.enlace select{width:auto;max-width:220px;font-size:.85rem;padding:4px 8px}
 .falta{color:var(--late);font-weight:700}
 /* men\fa  lateral */
 .icon-btn{border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:8px;width:38px;height:38px;font-size:1.1rem;cursor:pointer;flex:none}
@@ -265,7 +267,8 @@ body.side-open .side{transform:none;box-shadow:0 0 40px rgba(0,0,0,.15)}
 .inv-head{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
 .inv-head h2{font-family:var(--f-display);font-size:1.4rem;margin:0}
 .inv-add{display:grid;grid-template-columns:minmax(0,1fr) 120px 110px auto;gap:8px;margin:14px 0;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px}
-@media (max-width:560px){.inv-add{grid-template-columns:1fr 1fr}.inv-add #inv-name,.inv-add .btn{grid-column:1/-1}}
+.inv-add.q{grid-template-columns:minmax(0,1fr) 110px 100px 170px auto}
+@media (max-width:560px){.inv-add,.inv-add.q{grid-template-columns:1fr 1fr}.inv-add #inv-name,.inv-add #inv-copia,.inv-add .btn{grid-column:1/-1}}
 .inv-list{display:flex;flex-direction:column;gap:8px}
 .inv-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
 @media (max-width:560px){.inv-row{grid-template-columns:minmax(0,1fr) auto}.inv-row .inv-del{grid-column:2;grid-row:1}.inv-row .qty{grid-column:1/-1}}
@@ -386,6 +389,7 @@ body.con-fondo .stat,body.con-fondo .who{backdrop-filter:blur(4px)}
       <button class="nav-item" data-toggle="nav-inv-sub" aria-expanded="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7l9-4 9 4-9 4z M3 7v10l9 4 9-4V7 M12 11v10"/></svg>Inventario<span class="badge" id="inv-badge" hidden></span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"/></svg></button>
       <div class="nav-sub" id="nav-inv-sub">
         <button class="nav-item sub" data-view="inv-papel">Papel</button>
+        <button class="nav-item sub" data-view="inv-quimico">Papel químico</button>
       </div>
       <button class="nav-item" data-view="clientes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M2 21c0-4 3-6 7-6s7 2 7 6 M16 4a4 4 0 0 1 0 7 M19 15c2 1 3 3 3 6"/></svg>Clientes</button>
       <button class="nav-item" data-toggle="nav-cont-sub" aria-expanded="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h14v18H5z M8 7h8 M8 11h2 M12 11h2 M16 11h0 M8 15h2 M12 15h2 M8 18h6"/></svg>Contaduría<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"/></svg></button>
@@ -435,11 +439,12 @@ body.con-fondo .stat,body.con-fondo .who{backdrop-filter:blur(4px)}
   </div>
 
   <section id="inv" hidden>
-    <div class="inv-head"><h2>Inventario · Papel</h2><div class="stats" id="inv-stats"></div></div>
+    <div class="inv-head"><h2 id="inv-h2">Inventario · Papel</h2><div class="stats" id="inv-stats"></div></div>
     <form class="inv-add" id="inv-add">
       <input id="inv-name" placeholder="Nuevo material, ej: Propalcote 300 g 70×100" aria-label="Nombre del material">
       <input id="inv-qty" class="num" inputmode="numeric" placeholder="Cantidad" aria-label="Cantidad">
       <input id="inv-min" class="num" inputmode="numeric" placeholder="Mínimo" aria-label="Mínimo para avisar">
+      <select id="inv-copia" aria-label="Copia a la que corresponde" hidden></select>
       <button class="btn primary" id="inv-ok">Agregar</button>
     </form>
     <div class="banner" id="inv-aviso" hidden></div>
@@ -640,14 +645,14 @@ const waBtn=(p,txt)=>p.whatsapp?`<a class="btn wa" href="${waUrl(p.whatsapp)}" t
 const WA_ICO='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 0 0-7.8 13.5L3 21l4.6-1.2A9 9 0 1 0 12 3z M8.5 8.2c.2-.5.5-.5.8-.5h.5c.2 0 .4 0 .6.5l.7 1.7c.1.2.1.4 0 .6l-.5.6c-.1.2-.2.3 0 .6.4.7 1.6 2 3 2.6.3.1.5.1.6-.1l.6-.8c.2-.2.4-.2.6-.1l1.6.8c.3.1.4.2.4.4 0 .5-.1 1.2-.8 1.6-.6.4-1.6.6-3.5-.2-2.2-1-3.9-3.3-4.1-3.7-.3-.4-1-1.5-1-2.8 0-.8.2-1.3.5-1.6z"/></svg>';
 
 /* alertas de papel bajo */
-const papelesBajos=()=>(S.papeles||[]).filter(p=>p.minimo>0&&p.cantidad<=p.minimo);
+const papelesBajos=()=>[...(S.papeles||[]),...(S.quimicos||[])].filter(p=>p.minimo>0&&p.cantidad<=p.minimo);
 function renderAlertas(){
   const b=papelesBajos(),al=$("alerta-papel");
   $("inv-badge").hidden=!b.length;$("inv-badge").textContent=b.length;
   if(!isGer()||!b.length){al.hidden=true;return}
   al.hidden=false;
   al.innerHTML=`<b>Papel bajo:</b> ${b.map(p=>`<span class="al-item">${esc(p.nombre)} <span class="${p.cantidad<=0?"falta":"bajo-n"}">${fmtN(p.cantidad)}</span> / m\u00edn ${fmtN(p.minimo)} ${waBtn(p,"Pedir")}</span>`).join("")} <button class="btn" id="al-ir">Ver inventario</button>`;
-  $("al-ir").onclick=()=>setView("inv-papel");
+  $("al-ir").onclick=()=>setView(b.some(p=>(S.papeles||[]).includes(p))?"inv-papel":"inv-quimico");
 }
 
 /* calendario de entregas */
@@ -924,36 +929,46 @@ $("side-scrim").onclick=()=>setSide(false);
 document.querySelectorAll("[data-toggle]").forEach(b=>b.onclick=()=>{const o=b.getAttribute("aria-expanded")!=="true";b.setAttribute("aria-expanded",o);$(b.dataset.toggle).hidden=!o});
 document.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>{setView(b.dataset.view);if(!window.matchMedia("(min-width:900px)").matches)setSide(false)});
 // el t\u00edtulo de arriba cambia seg\u00fan la secci\u00f3n del men\u00fa
-const TITULOS={"resumen":"Resumen de gerencia","usuarios":"Usuarios","ordenes":"\u00d3rdenes de Producci\u00f3n","calendario":"Calendario","inv-papel":"Inventario de papel","clientes":"Clientes","cont-fact":"\u00d3rdenes sin facturar","cont-rem":"\u00d3rdenes sin remisi\u00f3n","reportes":"Reportes"};
+const TITULOS={"resumen":"Resumen de gerencia","usuarios":"Usuarios","ordenes":"\u00d3rdenes de Producci\u00f3n","calendario":"Calendario","inv-papel":"Inventario de papel","inv-quimico":"Inventario de papel químico","clientes":"Clientes","cont-fact":"\u00d3rdenes sin facturar","cont-rem":"\u00d3rdenes sin remisi\u00f3n","reportes":"Reportes"};
 function setView(v){
-  const soloGer=["reportes","cont-fact","cont-rem","inv-papel","clientes","resumen","usuarios"];
-  if(!["ordenes","inv-papel","reportes","calendario","clientes","cont-fact","cont-rem","resumen","usuarios"].includes(v)||(soloGer.includes(v)&&!isGer())||(["usuarios","resumen"].includes(v)&&!(S.yo&&S.yo.maestro)))v="ordenes";
+  const soloGer=["reportes","cont-fact","cont-rem","inv-papel","inv-quimico","clientes","resumen","usuarios"];
+  if(!["ordenes","inv-papel","inv-quimico","reportes","calendario","clientes","cont-fact","cont-rem","resumen","usuarios"].includes(v)||(soloGer.includes(v)&&!isGer())||(["usuarios","resumen"].includes(v)&&!(S.yo&&S.yo.maestro)))v="ordenes";
   S.view=v;ls.set("vista",v);
   $("titulo").textContent=TITULOS[v]||"\u00d3rdenes de Producci\u00f3n";
   document.querySelectorAll("[data-view]").forEach(b=>b.toggleAttribute("aria-current",b.dataset.view===v));
   document.querySelectorAll("[data-view]").forEach(b=>{if(b.dataset.view===v)b.setAttribute("aria-current","page")});
-  $("app").hidden=v!=="ordenes";$("inv").hidden=v!=="inv-papel";$("rep").hidden=v!=="reportes";
+  $("app").hidden=v!=="ordenes";$("inv").hidden=!v.startsWith("inv-");$("rep").hidden=v!=="reportes";
   $("cal").hidden=v!=="calendario";$("cli").hidden=v!=="clientes";$("cont").hidden=!v.startsWith("cont-");
   $("res").hidden=v!=="resumen";$("usr").hidden=v!=="usuarios";
   if(["calendario","clientes","cont-fact","cont-rem","resumen"].includes(v))render();
   if(v==="usuarios")loadUsr();
-  if(v==="inv-papel")loadInv();
+  if(v.startsWith("inv-")){if(S.invCat!==catInv()){S.inv=[];S.invCat=catInv();renderInv()}loadInv(true)}
   if(v==="reportes")loadRep();
 }
 
 /* ---------- inventario ---------- */
-const CATEGORIA="Papel";
+// dos inventarios en la misma pantalla: papel y papel qu\u00edmico (este \u00faltimo va enlazado a las copias de la orden)
+const catInv=()=>S.view==="inv-quimico"?"Qu\u00edmico":"Papel";
+const COPIA_NOMBRE={AM:"Amarilla",AZ:"Azul",RO:"Rosada",VE:"Verde",BLA:"Blanca"};
 async function loadInv(force){
   if(!S.yo)return;
   if(!force&&$("inv-list").contains(document.activeElement))return; // no pisar lo que alguien est\u00e1 escribiendo
-  try{S.inv=(await api("getInventario",S.user,S.pass)).filter(i=>i.categoria===CATEGORIA);S.invError="";S.papeles=S.inv.map(i=>({id:i.id,nombre:i.nombre,cantidad:i.cantidad,minimo:i.minimo,proveedor:i.proveedor,whatsapp:i.whatsapp}));renderAlertas()}
+  try{const todo=await api("getInventario",S.user,S.pass),cat=catInv(),corto=i=>({id:i.id,nombre:i.nombre,cantidad:i.cantidad,minimo:i.minimo,proveedor:i.proveedor,whatsapp:i.whatsapp,copia:i.copia||"",vaCon:i.vaCon||""});
+    S.inv=todo.filter(i=>i.categoria===cat);S.invCat=cat;S.invError="";
+    S.papeles=todo.filter(i=>i.categoria==="Papel").map(corto);S.quimicos=todo.filter(i=>i.categoria==="Qu\u00edmico").map(corto);renderAlertas()}
   catch(e){S.invError="No se carg\u00f3 el inventario. Revisa la conexi\u00f3n; se reintenta solo."}
   renderInv();
 }
 function renderInv(){
-  const a=$("inv-aviso");
+  const a=$("inv-aviso"),q=catInv()!=="Papel",ic=$("inv-copia");
+  $("inv-h2").textContent=q?"Inventario · Papel químico":"Inventario · Papel";
+  $("inv-name").placeholder=q?"Nuevo químico, ej: Químico amarillo 70×100":"Nuevo material, ej: Propalcote 300 g 70×100";
+  ic.hidden=!q;$("inv-add").classList.toggle("q",q);if(q&&!ic.options.length)ic.innerHTML=`<option value="">Copia…</option>`+COPIAS.map(c=>`<option value="${c}">${c} · ${COPIA_NOMBRE[c]||c}</option>`).join("");
+  const papelesOrden=(S.papeles||[]).slice().sort((x,y)=>x.nombre.localeCompare(y.nombre,"es"));
+  const enlace=i=>!q?"":`<div class="enlace"><label>Copia<select data-f="copia" aria-label="Copia de ${esc(i.nombre)}"><option value="">— Ninguna —</option>${COPIAS.map(c=>`<option value="${c}" ${i.copia===c?"selected":""}>${c} · ${COPIA_NOMBRE[c]||c}</option>`).join("")}</select></label>
+      <label>Va con<select data-f="vaCon" aria-label="Papel con el que va ${esc(i.nombre)}"><option value="">— Sin enlace —</option>${papelesOrden.map(p=>`<option value="${esc(p.id)}" ${i.vaCon===p.id?"selected":""}>${esc(p.nombre)}</option>`).join("")}</select></label></div>`;
   if(S.invError){a.hidden=false;a.textContent=S.invError}
-  else if(!S.inv.length){a.hidden=false;a.innerHTML="Todav\u00eda no hay papeles registrados. Escribe el nombre arriba, la cantidad y toca <b>Agregar</b>."}
+  else if(!S.inv.length){a.hidden=false;a.innerHTML=q?"Todav\u00eda no hay papel qu\u00edmico. Escribe el nombre arriba, la cantidad, escoge a qu\u00e9 copia corresponde y toca <b>Agregar</b>. Despu\u00e9s puedes decir con qu\u00e9 papel va.":"Todav\u00eda no hay papeles registrados. Escribe el nombre arriba, la cantidad y toca <b>Agregar</b>."}
   else a.hidden=true;
   const total=S.inv.reduce((t,i)=>t+(Number(i.cantidad)||0),0);
   $("inv-stats").innerHTML=`<span class="stat">Materiales <b>${S.inv.length}</b></span><span class="stat">Unidades <b>${fmtN(total)}</b></span>`;
@@ -963,7 +978,7 @@ function renderInv(){
       <div class="prov-wrap"><details class="prov-d" data-prov="${esc(i.id)}" ${(S.provOpen||new Set()).has(i.id)?"open":""}>
         <summary>${i.proveedor?"Proveedor: <b>"+esc(i.proveedor)+"</b>":"Agregar proveedor"}</summary>
         <div class="prov"><input class="prov-n" value="${esc(i.proveedor||"")}" placeholder="Proveedor" aria-label="Proveedor" data-f="proveedor"><input class="prov-t" value="${esc(i.whatsapp||"")}" inputmode="tel" placeholder="WhatsApp" aria-label="WhatsApp del proveedor" data-f="whatsapp"></div>
-      </details>${waBtn(i)}</div>
+      </details>${waBtn(i)}</div>${enlace(i)}
       <div class="inv-meta">${i.por?"Actualizado por "+esc(i.por)+" \u00b7 "+new Date(i.t).toLocaleString("es-CO",{day:"numeric",month:"short",hour:"numeric",minute:"2-digit"}):""}</div></div>
       <div class="qty ${Number(i.cantidad)<=0?"low":(i.minimo>0&&Number(i.cantidad)<=i.minimo?"warn":"")}"><button type="button" data-d="-1" aria-label="Restar uno">\u2212</button><input class="num" inputmode="numeric" value="${esc(i.cantidad)}" aria-label="Cantidad" data-f="cantidad"><button type="button" data-d="1" aria-label="Sumar uno">+</button><label class="min" title="Cuando la cantidad llega a este n\u00famero, avisa">M\u00edn<input class="num" inputmode="numeric" value="${i.minimo||""}" placeholder="\u2014" aria-label="M\u00ednimo" data-f="minimo"></label></div>
       <button type="button" class="inv-del" aria-label="Eliminar material">Eliminar</button>
@@ -981,6 +996,7 @@ function renderInv(){
     mn.oninput=()=>{const v=mn.value.replace(/\D/g,"");if(v!==mn.value)mn.value=v};
     mn.onchange=()=>guardarItem({id,minimo:Number(mn.value)||0});
     mn.onkeydown=e=>{if(e.key==="Enter")mn.blur()};
+    ["copia","vaCon"].forEach(k=>{const el=row.querySelector(`[data-f="${k}"]`);if(el)el.onchange=()=>guardarItem({id,[k]:el.value})});
     cant.onkeydown=e=>{if(e.key==="Enter")cant.blur()};
     row.querySelectorAll("[data-d]").forEach(b=>b.onclick=()=>{const d=Number(b.dataset.d);if((Number(item.cantidad)||0)+d<0)return;item.cantidad=(Number(item.cantidad)||0)+d;cant.value=item.cantidad;row.querySelector(".qty").classList.toggle("low",item.cantidad<=0);encolarDelta(id,d)});
     const del=row.querySelector(".inv-del");
@@ -997,13 +1013,13 @@ function encolarDelta(id,d){deltas[id]=(deltas[id]||0)+d;clearTimeout(deltaT);de
   for(const [k,v] of Object.entries(lote)){if(!v)continue;try{await api("saveItem",S.user,S.pass,{id:k,delta:v})}catch(e){toast(errMsg(e))}}
   loadInv(true)},700)}
 async function guardarItem(item){
-  try{await api("saveItem",S.user,S.pass,Object.assign({categoria:CATEGORIA},item));toast("Guardado");loadInv(true)}catch(e){toast(errMsg(e));loadInv(true)}
+  try{await api("saveItem",S.user,S.pass,Object.assign({categoria:catInv()},item));toast("Guardado");loadInv(true)}catch(e){toast(errMsg(e));loadInv(true)}
 }
 ["inv-qty","inv-min"].forEach(k=>$(k).addEventListener("input",()=>{const i=$(k),v=i.value.replace(/\D/g,"");if(v!==i.value)i.value=v}));
 $("inv-add").onsubmit=async e=>{e.preventDefault();
   const nombre=$("inv-name").value.trim();if(!nombre){$("inv-name").focus();return}
   $("inv-ok").disabled=true;
-  try{await api("saveItem",S.user,S.pass,{categoria:CATEGORIA,nombre,cantidad:Number($("inv-qty").value)||0,minimo:Number($("inv-min").value)||0});$("inv-name").value="";$("inv-qty").value="";$("inv-min").value="";toast(nombre+" agregado");loadInv(true)}
+  try{await api("saveItem",S.user,S.pass,{categoria:catInv(),nombre,cantidad:Number($("inv-qty").value)||0,minimo:Number($("inv-min").value)||0,copia:catInv()==="Papel"?"":$("inv-copia").value});$("inv-name").value="";$("inv-copia").value="";$("inv-qty").value="";$("inv-min").value="";toast(nombre+" agregado");loadInv(true)}
   catch(err){toast(errMsg(err))}
   $("inv-ok").disabled=false;$("inv-name").focus();
 };
@@ -1130,8 +1146,8 @@ async function load(completo){
     if(c0!==cambios){clearTimeout(reintento);reintento=setTimeout(()=>load(completo),1200);return} // se guardó algo mientras llegaba: esta respuesta ya es vieja
     if(d.igual){if(S.error){S.error="";render()}return}
     S.rev=d.rev||"";
-    S.yo=d.yo;S.orders=d.orders;S.team=d.team;S.papeles=d.papeles||[];S.guardados=d.guardados||[];S.error="";
-    ls.set("cache",JSON.stringify({yo:d.yo,orders:d.orders,team:d.team,papeles:S.papeles,guardados:S.guardados}));
+    S.yo=d.yo;S.orders=d.orders;S.team=d.team;S.papeles=d.papeles||[];S.quimicos=d.quimicos||[];S.guardados=d.guardados||[];S.error="";
+    ls.set("cache",JSON.stringify({yo:d.yo,orders:d.orders,team:d.team,papeles:S.papeles,quimicos:S.quimicos,guardados:S.guardados}));
     if(!isGer()){
       if(!S.first){const nuevas=S.orders.filter(o=>!S.seen.has(o.id));if(nuevas.length){toast("Nueva orden: "+titulo(nuevas[0]));document.title="("+nuevas.length+") \u00d3rdenes de Producci\u00f3n"}}
       S.orders.forEach(o=>S.seen.add(o.id));
@@ -1141,7 +1157,7 @@ async function load(completo){
   render();
 }
 let vueltas=0;
-setInterval(()=>{if(S.yo&&!document.hidden&&$("scrim").hidden&&!enVuelo){load(++vueltas%COMPLETO_CADA===0);if(S.view==="inv-papel")loadInv()}},REFRESCO_MS);
+setInterval(()=>{if(S.yo&&!document.hidden&&$("scrim").hidden&&!enVuelo){load(++vueltas%COMPLETO_CADA===0);if((S.view||"").startsWith("inv-"))loadInv()}},REFRESCO_MS);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden){document.title="\u00d3rdenes de Producci\u00f3n";load(true)}});
 $("buscar").oninput=e=>{S.q=e.target.value.toLowerCase();render()};
 
@@ -1185,6 +1201,9 @@ function calc(o){
 }
 const fmtN=v=>v==null?"\u2014":Number(v).toLocaleString("es-CO");
 const creador=o=>o.creadaPor||((o.historial||[])[0]||{}).p||"";
+// lo que le falta a la orden, por papel: "120 de Bond 70×100, 120 de Químico amarillo"
+const faltaTexto=o=>{const l=[...(o.papelId?[{n:papelNombre(o)||"papel",c:o.consumo,d:o.descontado}]:[]),...(o.quimicos||[]).map(q=>({n:q.nombre,c:q.consumo,d:q.descontado}))]
+  .map(x=>({n:x.n,f:Math.max(0,(Number(x.c)||0)-(Number(x.d)||0))})).filter(x=>x.f>0);return l.length?l.map(x=>fmtN(x.f)+" de "+x.n).join(", "):fmtN(o.faltan)+" pliegos"};
 const papelNombre=o=>{const p=o.papelId&&(S.papeles||[]).find(x=>x.id===o.papelId);return p?p.nombre:(o.papel||"")};
 const prodNombre=o=>o.producto==="Otro"&&o.productoOtro?o.productoOtro:(o.producto||"");
 function titulo(o){const base=[o.cantidad,prodNombre(o)].filter(Boolean).join(" \u00d7 ");const t=[base,o.referencia].filter(Boolean).join(" ")||o.cliente||"Orden sin t\u00edtulo";const m=multiplo(o.producto),c=parseFloat(String(o.cantidad||"").replace(/\D/g,""));return m>1&&c?t+" ("+fmtN(c*m)+" hojas)":t}
@@ -1248,7 +1267,7 @@ function openForm(o,dup){
     <h4 class="sec full">Corte</h4>
     <label>Papel y gramaje<select id="f-papel"><option value="">\u2014 Sin papel \u2014</option>${(S.papeles||[]).slice().sort((a,b)=>a.nombre.localeCompare(b.nombre,"es")).map(p=>`<option value="${esc(p.id)}" ${p.id===o.papelId?"selected":""}>${esc(p.nombre)} \u00b7 ${fmtN(p.cantidad)} disp.</option>`).join("")}${o.papel&&!o.papelId?`<option value="__old" selected>${esc(o.papel)} (sin inventario)</option>`:""}</select></label>
     <label>Tama\u00f1o de corte<input id="f-tam" value="${esc(o.tamano)}" placeholder="9 x 5,5 cm"></label>
-    <fieldset class="full"><legend>Copias</legend>${checks("f-cp",COPIAS,o.copias)}</fieldset>
+    <fieldset class="full" id="f-cp-box"><legend>Copias</legend>${checks("f-cp",COPIAS,o.copias)}<div class="stock" id="f-quim" hidden></div></fieldset>
     <label>P\u00e1ginas<input id="f-pag" value="${esc(o.paginas)}"></label>
     <label>Sobrantes<input id="f-sob" class="num" inputmode="numeric" value="${esc(o.sobrantes)}"></label>
     <label># Tama\u00f1os x corte<input id="f-ntam" class="num" inputmode="numeric" value="${esc(o.nTamanos)}"></label>
@@ -1293,12 +1312,33 @@ function openForm(o,dup){
     const m=multiplo($("f-prod").value);
     $("f-calc").innerHTML=`<div><span>Buenos</span><b>${fmtN(c.buenos)}</b><small>Cantidad${m>1?" \u00d7 "+m:""} \u00f7 Cabida</small></div><div><span>Total</span><b>${fmtN(c.total)}</b><small>Buenos + Sobrantes</small></div><div><span># Pliegos</span><b>${fmtN(c.pliegos)}</b><small>Total \u00f7 # Tama\u00f1os x corte</small></div>`;
     const pid=$("f-papel").value,pap=(S.papeles||[]).find(x=>x.id===pid),st=$("f-stock");
-    if(!pap||c.pliegos==null){st.innerHTML=pap?`Disponible: <b>${fmtN(pap.cantidad)}</b> pliegos de ${esc(pap.nombre)}`:"";return}
-    const ya=ed&&o.papelId===pid?(o.descontado||0):0; // en una edici\u00f3n, lo ya descontado vuelve a contar como disponible
-    const disp=pap.cantidad+ya,falta=c.pliegos-disp;
-    st.innerHTML=falta>0
-      ?`<span class="falta">Faltan ${fmtN(falta)} pliegos</span> \u00b7 hay ${fmtN(disp)} de ${esc(pap.nombre)}, la orden necesita ${fmtN(c.pliegos)}`
-      :`Se descuentan <b>${fmtN(c.pliegos)}</b> pliegos de ${esc(pap.nombre)} \u00b7 quedan <b>${fmtN(disp-c.pliegos)}</b>`};
+    if(!pap||c.pliegos==null)st.innerHTML=pap?`Disponible: <b>${fmtN(pap.cantidad)}</b> pliegos de ${esc(pap.nombre)}`:"";
+    else{
+      const ya=ed&&o.papelId===pid?(o.descontado||0):0; // en una edici\u00f3n, lo ya descontado vuelve a contar como disponible
+      const disp=pap.cantidad+ya,falta=c.pliegos-disp;
+      st.innerHTML=falta>0
+        ?`<span class="falta">Faltan ${fmtN(falta)} pliegos</span> \u00b7 hay ${fmtN(disp)} de ${esc(pap.nombre)}, la orden necesita ${fmtN(c.pliegos)}`
+        :`Se descuentan <b>${fmtN(c.pliegos)}</b> pliegos de ${esc(pap.nombre)} \u00b7 quedan <b>${fmtN(disp-c.pliegos)}</b>`}
+    // debajo de las copias: pliegos de papel y de qu\u00edmico que gasta la orden
+    const cps=sel("f-cp",COPIAS),qb=$("f-quim");
+    if(!cps.length){qb.hidden=true;return}
+    qb.hidden=false;
+    const n=c.pliegos||0,viejaSinQuim=ed&&!o.quimicos&&JSON.stringify(o.copias||[])===JSON.stringify(cps);
+    if(viejaSinQuim){qb.innerHTML=`<b>${fmtN(n)}</b> pliegos de papel \u00b7 esta orden es de antes del papel qu\u00edmico: no descuenta qu\u00edmico mientras no le cambies las copias`;return}
+    const filas=cps.map(cl=>{const q=quimicoPara(cl,pid);
+      if(!q)return (S.quimicos||[]).some(x=>x.copia===cl)
+        ?`<div>${cl}: <span class="falta">no se descuenta qu\u00edmico</span>: hay varios para esta copia y ninguno va con ${pid?"este papel":"un papel escogido"}. ${pid?"Enl\u00e1zalo en Inventario \u00b7 Papel qu\u00edmico":"Escoge el papel arriba"}</div>`
+        :`<div>${cl}: <span class="falta">no se descuenta qu\u00edmico</span>: no hay papel qu\u00edmico para esta copia (cr\u00e9alo en Inventario \u00b7 Papel qu\u00edmico)</div>`;
+      const ya=ed?(((o.quimicos||[]).find(x=>x.id===q.id&&x.color===cl)||{}).descontado||0):0,disp=q.cantidad+ya;
+      return `<div>${cl}: ${esc(q.nombre)} \u00b7 <b>${fmtN(n)}</b>${n>disp?` <span class="falta">faltan ${fmtN(n-disp)}</span> (hay ${fmtN(disp)})`:` \u00b7 quedan ${fmtN(disp-n)}`}</div>`});
+    const conQ=cps.filter(cl=>quimicoPara(cl,pid)).length;
+    qb.innerHTML=`<div><b>${fmtN(n)}</b> pliegos de papel \u00b7 <b>${fmtN(n*conQ)}</b> pliegos de qu\u00edmico</div>`+filas.join("")};
+  // el qu\u00edmico de cada copia: el de ese color enlazado al papel de la orden; si no, el que no tiene enlace; si solo hay uno de ese color, ese (igual que el servidor)
+  const quimicoPara=(cl,pid)=>{const d=(S.quimicos||[]).filter(q=>q.copia===cl);return d.find(q=>pid&&q.vaCon===pid)||d.find(q=>!q.vaCon)||(d.length===1?d[0]:null)};
+  $("f-cp-box").addEventListener("change",()=>{
+    // si a\u00fan no hay papel y los qu\u00edmicos de las copias van con uno, se escoge ese como original
+    if(!$("f-papel").value){const q=sel("f-cp",COPIAS).map(cl=>quimicoPara(cl,"")).find(q=>q&&q.vaCon&&(S.papeles||[]).some(p=>p.id===q.vaCon));if(q)$("f-papel").value=q.vaCon}
+    pintar()});
   ["f-cant","f-cab","f-sob","f-ntam"].forEach(id=>$(id).addEventListener("input",pintar));$("f-prod").addEventListener("change",pintar);
   $("f-prod").addEventListener("change",()=>{const otro=$("f-prod").value==="Otro";$("f-prod-otro-l").hidden=!otro;if(otro)$("f-prod-otro").focus()});$("f-papel").addEventListener("change",pintar);pintar();
   // solo n\u00fameros en los campos num\u00e9ricos
@@ -1333,7 +1373,7 @@ function openDetail(id){
     <dt>Entrega</dt><dd class="${isLate(o)?"due l":""}">${fmtDate(o.entrega)}${o.urgente?" \u00b7 Urgente":""}</dd>
   </dl>
   <h4 class="sec">Dise\u00f1o</h4><dl>${r("Cabida",esc(o.cabida))}${r("# Plancha",esc(o.plancha))}</dl>
-  <h4 class="sec">Corte</h4><dl>${r("Papel",esc(papelNombre(o)))}${o.faltan>0?`<dt>Inventario</dt><dd class="falta">Faltan ${fmtN(o.faltan)} pliegos</dd>`:(o.descontado>0?r("Inventario",fmtN(o.descontado)+" pliegos descontados"):"")}${r("Tama\u00f1o corte",esc(o.tamano))}${r("Copias",list(o.copias))}${r("P\u00e1ginas",esc(o.paginas))}${r("Sobrantes",esc(o.sobrantes))}${r("# Tama\u00f1os x corte",esc(o.nTamanos))}</dl>
+  <h4 class="sec">Corte</h4><dl>${r("Papel",esc(papelNombre(o)))}${o.faltan>0?`<dt>Inventario</dt><dd class="falta">Faltan ${esc(faltaTexto(o))}</dd>`:(o.descontado>0?r("Inventario",fmtN(o.descontado)+" pliegos descontados"):"")}${r("Tama\u00f1o corte",esc(o.tamano))}${r("Copias",list(o.copias))}${(o.quimicos||[]).length?r("Químico",o.quimicos.map(q=>esc(q.color+": "+q.nombre+" · "+fmtN(q.descontado||0)+" de "+fmtN(q.consumo)+" descontados")).join("<br>")):""}${r("P\u00e1ginas",esc(o.paginas))}${r("Sobrantes",esc(o.sobrantes))}${r("# Tama\u00f1os x corte",esc(o.nTamanos))}</dl>
   ${(()=>{const c=calc(o);return c.buenos==null?"":`<div class="calc">`+[["Buenos",c.buenos],["Total",c.total],["# Pliegos",c.pliegos]].map(([k,v])=>`<div><span>${k}</span><b>${fmtN(v)}</b></div>`).join("")+`</div>`})()}
   <h4 class="sec">Impresi\u00f3n</h4><dl>${r("Tiro",esc(inkText(o.tiro,o.tiroOtro)))}${r("Retiro",esc(inkText(o.retiro,o.retiroOtro)))}</dl>
   <h4 class="sec">Acabados</h4>${acabHTML(o,true)||`<dl>${r("Acabados","Ninguno")}</dl>`}
@@ -1344,7 +1384,7 @@ function openDetail(id){
   <div class="hist"><b>Historial</b>${(o.historial||[]).map(h=>`<span>${esc(h.e)}${h.p?" \u00b7 "+esc(h.p):""} \u00b7 ${new Date(h.t).toLocaleString("es-CO",{day:"numeric",month:"short",hour:"numeric",minute:"2-digit"})}</span>`).join("")}</div>
   <div class="row">
     ${prev&&(ger||o.estado!=="Entregado")?`<button class="btn" id="d-prev">\u2190 Devolver a ${prev}</button>`:""}
-    ${next&&(ger||next!=="Entregado")?(bloqueada(o,next)?`<span class="bloq">\ud83d\udd12 No pasa a ${next}: ${motivoBloqueo(o,next)==="papel"?"faltan "+fmtN(o.faltan)+" pliegos":"falta terminar "+esc(pendientesAcab(o).join(", "))}</span>`:`<button class="btn primary" id="d-next">Pasar a ${next} \u2192</button>`):""}
+    ${next&&(ger||next!=="Entregado")?(bloqueada(o,next)?`<span class="bloq">\ud83d\udd12 No pasa a ${next}: ${motivoBloqueo(o,next)==="papel"?"faltan "+faltaTexto(o):"falta terminar "+esc(pendientesAcab(o).join(", "))}</span>`:`<button class="btn primary" id="d-next">Pasar a ${next} \u2192</button>`):""}
   </div>
   ${ger?`<div class="row"><button class="btn primary" id="d-rep">Descargar orden</button><button class="btn" id="d-dup">Duplicar</button><button class="btn" id="d-plant">Guardar como plantilla</button></div>`:""}
   ${ger?`<div class="row"><button class="btn" id="d-edit">Editar</button><button class="btn danger" id="d-del">Eliminar</button></div><div id="d-conf"></div>`:""}
@@ -1361,7 +1401,7 @@ function openDetail(id){
     catch(e){b.disabled=false;b.textContent="Guardar como plantilla";toast(errMsg(e))}};
   if($("d-dup"))$("d-dup").onclick=()=>{
     const c=JSON.parse(JSON.stringify(o));
-    ["id","ot","estado","historial","creadaPor","facturada","remisionada","descontado","faltan","consumo","updated","creada","buenos","total","pliegos","fotos","acabHechos","numEstado","numPor"].forEach(k=>delete c[k]);
+    ["id","ot","estado","historial","creadaPor","facturada","remisionada","descontado","faltan","consumo","updated","creada","buenos","total","pliegos","fotos","acabHechos","numEstado","numPor","quimicos"].forEach(k=>delete c[k]);
     c.fechaOrden=hoyISO();c.entrega="";c.__de=o.ot;
     closePanel();openForm(c,true);
   };
@@ -1370,12 +1410,13 @@ function openDetail(id){
       b.disabled=false;b.textContent="Ver en Reportes \u2192";b.onclick=()=>{closePanel();setView("reportes")};toast("Reporte de "+o.ot+" guardado en Reportes")}
     catch(e){b.disabled=false;b.textContent="Descargar orden";toast(errMsg(e))}};
   if($("d-del"))$("d-del").onclick=()=>{
-    const desc=Number(o.descontado)||0,pap=papelNombre(o)||"papel";
+    const gastos=[...(o.papelId&&Number(o.descontado)>0?[{n:papelNombre(o)||"papel",d:Number(o.descontado)}]:[]),...(o.quimicos||[]).filter(q=>Number(q.descontado)>0).map(q=>({n:q.nombre,d:Number(q.descontado)}))];
+    const lista=gastos.map(g=>`<b>${fmtN(g.d)}</b> de <b>${esc(g.n)}</b>`).join(", ");
     const borrar=async(devolver,b)=>{$("d-conf").querySelectorAll("button").forEach(x=>x.disabled=true);
-      try{await api("deleteOrder",S.user,S.pass,o.id,devolver);closePanel();toast(devolver?"Orden eliminada y "+fmtN(desc)+" pliegos de "+pap+" regresados al inventario":"Orden eliminada");load();if(S.view==="inv-papel")loadInv(true)}
+      try{await api("deleteOrder",S.user,S.pass,o.id,devolver);closePanel();toast(devolver?"Orden eliminada y pliegos regresados al inventario":"Orden eliminada");load();if((S.view||"").startsWith("inv-"))loadInv(true)}
       catch(e){$("d-conf").querySelectorAll("button").forEach(x=>x.disabled=false);toast(errMsg(e))}};
-    if(o.papelId&&desc>0){
-      $("d-conf").innerHTML=`<div class="banner conf"><span>Vas a eliminar ${esc(o.ot)}. \u00bfDeseas regresar <b>${fmtN(desc)} pliegos</b> de <b>${esc(pap)}</b> al inventario?${o.faltan>0?` <span class="note">(la orden necesitaba ${fmtN(o.consumo||desc+o.faltan)}; solo se hab\u00edan descontado ${fmtN(desc)})</span>`:""}</span>
+    if(gastos.length){
+      $("d-conf").innerHTML=`<div class="banner conf"><span>Vas a eliminar ${esc(o.ot)}. \u00bfDeseas regresar al inventario los pliegos que se descontaron (${lista})?${o.faltan>0?` <span class="note">(a la orden todav\u00eda le faltaban ${fmtN(o.faltan)} pliegos que no se hab\u00edan descontado)</span>`:""}</span>
         <div class="row"><button class="btn primary" id="d-yes-dev">S\u00ed, regresar y eliminar</button><button class="btn danger" id="d-yes">No, solo eliminar</button><button class="btn" id="d-no">Cancelar</button></div></div>`;
       $("d-yes-dev").onclick=()=>borrar(true);
     }else{
@@ -1488,7 +1529,7 @@ fondo(FONDO_URL,FONDO_MOVIL_URL);
   // la clave la revisa el servidor en esa misma consulta, así que no hace falta esperar un viaje aparte para entrar
   let c=null;try{c=JSON.parse(ls.get("cache")||"null")}catch(e){}
   if(c&&c.yo&&c.yo.nombre===u){
-    S.user=u;S.pass=p;S.yo=c.yo;S.orders=c.orders||[];S.team=c.team||[];S.papeles=c.papeles||[];S.guardados=c.guardados||[];
+    S.user=u;S.pass=p;S.yo=c.yo;S.orders=c.orders||[];S.team=c.team||[];S.papeles=c.papeles||[];S.quimicos=c.quimicos||[];S.guardados=c.guardados||[];
     S.orders.forEach(o=>S.seen.add(o.id));S.first=false;
     retomarFila();
     showApp();render();load(true);
@@ -1501,7 +1542,7 @@ fondo(FONDO_URL,FONDO_MOVIL_URL);
 </script>
 <script>
 (function(){
-  var LENS=[0, 88, 221, 200, 39, 41, 24, 104, 23, 102, 74, 99, 109, 40, 126, 40, 103, 86, 163, 156, 103, 129, 82, 22, 110, 150, 141, 128, 134, 24, 119, 112, 34, 123, 125, 55, 168, 121, 130, 29, 100, 34, 49, 76, 13, 1, 25, 37, 21, 35, 26, 59, 68, 37, 3, 18, 1, 71, 70, 53, 107, 11, 26, 18, 85, 211, 33, 23, 128, 107, 1, 86, 23, 64, 55, 25, 63, 96, 72, 5, 1, 117, 122, 19, 54, 56, 43, 111, 155, 118, 139, 201, 0, 88, 181, 144, 28, 23, 115, 109, 99, 247, 55, 10, 1, 23, 18, 64, 36, 39, 42, 65, 1, 0, 50, 64, 205, 382, 0, 27, 83, 25, 46, 70, 48, 18, 285, 46, 1, 0, 28, 21, 93, 60, 28, 43, 85, 90, 80, 90, 68, 27, 78, 79, 58, 35, 188, 102, 306, 12, 3, 31, 59, 96, 95, 5, 107, 111, 172, 79, 21, 185, 1, 128, 128, 90, 226, 0, 75, 20, 16, 91, 168, 56, 1, 77, 21, 33, 145, 54, 110, 59, 139, 53, 55, 62, 27, 105, 137, 72, 12, 27, 53, 133, 259, 77, 75, 139, 279, 12, 189, 61, 69, 95, 125, 158, 46, 71, 192, 49, 58, 69, 185, 7, 118, 5, 21, 1, 39, 26, 22, 228, 82, 4, 1, 28, 50, 60, 81, 32, 1, 35, 51, 77, 84, 28, 158, 32, 53, 2, 0, 0, 21, 22, 57, 103, 35, 72, 107, 60, 146, 157, 187, 43, 1, 38, 0, 44, 84, 22, 25, 72, 84, 1, 97, 154, 21, 94, 113, 90, 58, 95, 137, 105, 92, 73, 90, 114, 99, 107, 71, 22, 123, 208, 107, 19, 182, 213, 32, 153, 88, 226, 82, 86, 241, 119, 1, 109, 109, 53, 0, 54, 25, 182, 14, 1, 21, 88, 171, 155, 171, 163, 203, 253, 143, 72, 174, 22, 59, 129, 36, 174, 32, 6, 48, 113, 161, 6, 80, 46, 147, 46, 177, 5, 1, 51, 77, 28, 139, 97, 32, 29, 2, 0, 55, 94, 87, 22, 86, 37, 67, 212, 288, 177, 115, 10, 1, 82, 56, 54, 109, 125, 80, 103, 22, 25, 32, 49, 101, 166, 190, 17, 4, 234, 1, 0, 34, 220, 208, 388, 19, 71, 61, 45, 31, 38, 109, 59, 18, 1, 49, 105, 68, 255, 139, 2, 45, 146, 170, 116, 43, 184, 159, 75, 302, 20, 96, 227, 29, 72, 108, 117, 95, 106, 63, 85, 30, 31, 30, 1, 0, 38, 24, 30, 18, 116, 250, 100, 14, 1, 21, 25, 57, 156, 21, 63, 145, 92, 84, 129, 125, 102, 298, 33, 192, 577, 92, 22, 59, 58, 99, 150, 53, 91, 71, 142, 190, 52, 83, 65, 51, 55, 288, 44, 26, 259, 24, 138, 6, 5, 1, 69, 27, 168, 140, 22, 33, 156, 1, 137, 51, 83, 28, 254, 32, 51, 2, 0, 36, 105, 25, 142, 14, 1, 18, 48, 65, 74, 51, 56, 85, 1, 108, 30, 48, 74, 63, 160, 85, 2, 141, 31, 63, 217, 51, 167, 37, 2, 21, 41, 57, 129, 21, 86, 76, 35, 122, 133, 171, 216, 103, 61, 22, 59, 50, 145, 44, 26, 259, 24, 148, 6, 5, 11, 1, 0, 45, 101, 111, 124, 132, 167, 77, 185, 30, 68, 110, 100, 32, 1, 100, 106, 112, 61, 153, 120, 49, 31, 162, 124, 59, 28, 48, 96, 93, 54, 14, 1, 66, 6, 187, 111, 95, 35, 77, 31, 17, 63, 103, 1, 82, 24, 50, 100, 1, 0, 232, 0, 33, 101, 14, 30, 18, 91, 19, 6, 71, 161, 55, 20, 109, 114, 17, 199, 44, 5, 18, 251, 11, 1, 14, 156, 134, 67, 0, 34, 18, 18, 20, 20, 55, 141, 25, 59, 196, 153, 25, 55, 246, 250, 44, 37, 153, 92, 182, 16, 188, 128, 22, 23, 105, 1, 94, 64, 34, 17, 112, 100, 50, 43, 57, 32, 1, 65, 63, 116, 88, 307, 260, 19, 24, 113, 195, 112, 1, 17, 89, 50, 76, 63, 55, 173, 105, 124, 45, 90, 83, 525, 24, 57, 528, 14, 1, 0, 33, 144, 86, 85, 75, 108, 0, 25, 21, 141, 157, 18, 156, 196, 332, 39, 389, 125, 121, 93, 181, 173, 205, 124, 93, 91, 0, 41, 122, 105, 0, 35, 431, 107, 94, 75, 106, 119, 45, 47, 0, 44, 101, 107, 0, 38, 100, 107, 95, 0, 35, 114, 108, 132, 43, 200, 12, 35, 61, 346, 48, 310, 138, 76, 82, 96, 218, 139, 117, 54, 205, 161, 183, 18, 157, 168, 40, 335, 89, 130, 126, 52, 24, 150, 125, 136, 206, 51, 143, 38, 157, 47, 22, 109, 35, 23, 30, 209, 61, 4, 1, 93, 24, 51, 54, 44, 51, 52, 98, 102, 26, 40, 81, 38, 51, 61, 115, 7, 103, 421, 220, 140, 89, 96, 8, 17, 51, 245, 19, 114, 318, 8, 212, 162, 53, 34, 15, 25, 24, 70, 72, 53, 118, 155, 88, 40, 42, 219, 51, 34, 4, 120, 55, 161, 81, 40, 67, 104, 234, 102, 26, 330, 230, 46, 10, 250, 5, 41, 53, 4, 1, 31, 51, 59, 131, 139, 115, 135, 1, 25, 90, 65, 55, 18, 105, 135, 161, 137, 5, 1, 24, 63, 50, 61, 104, 124, 1, 74, 54, 56, 46, 71, 94, 105, 27, 61, 67, 11, 1, 81, 34, 65, 22, 64, 113, 12, 1, 56, 92, 31, 42, 32, 99, 124, 14, 62, 19, 164, 180, 71, 3, 68, 295, 10, 114, 438, 3, 39, 150, 1, 123, 26, 67, 51, 26, 147, 63, 114, 4, 84, 139, 52, 96, 183, 83, 68, 109, 30, 100, 174, 1, 121, 34, 0, 36, 33, 11, 36, 128, 32, 105, 116, 65, 31, 124, 56, 18, 34, 110, 149, 11, 145, 104, 5, 0];
+  var LENS=[0, 88, 221, 200, 39, 41, 24, 104, 23, 102, 74, 99, 109, 40, 126, 40, 103, 86, 163, 156, 103, 129, 82, 22, 110, 150, 141, 128, 134, 24, 119, 112, 34, 123, 125, 55, 168, 121, 130, 29, 100, 34, 49, 76, 13, 1, 25, 37, 21, 35, 26, 59, 68, 37, 3, 18, 1, 71, 70, 53, 107, 11, 26, 18, 85, 211, 33, 23, 128, 107, 1, 86, 23, 64, 55, 25, 63, 96, 72, 5, 1, 117, 122, 19, 54, 56, 43, 111, 155, 118, 139, 201, 0, 88, 181, 144, 28, 23, 115, 109, 99, 247, 55, 10, 1, 23, 18, 64, 36, 39, 42, 65, 1, 0, 50, 64, 205, 382, 0, 27, 108, 25, 46, 70, 48, 18, 285, 99, 1, 0, 28, 21, 93, 60, 28, 43, 85, 90, 80, 90, 68, 27, 78, 79, 58, 35, 188, 102, 306, 12, 3, 31, 59, 96, 95, 5, 107, 111, 172, 79, 21, 185, 1, 128, 128, 90, 226, 0, 75, 20, 16, 91, 168, 56, 1, 77, 21, 33, 145, 54, 110, 59, 139, 53, 55, 62, 27, 105, 137, 72, 12, 27, 53, 133, 259, 77, 75, 139, 279, 12, 189, 61, 69, 95, 125, 158, 46, 71, 192, 49, 58, 69, 185, 7, 118, 5, 21, 1, 39, 26, 22, 228, 82, 4, 1, 28, 50, 60, 81, 32, 1, 35, 51, 77, 84, 28, 158, 32, 53, 2, 0, 0, 21, 22, 57, 103, 35, 72, 107, 60, 146, 157, 187, 43, 1, 38, 0, 44, 84, 22, 25, 72, 84, 1, 97, 154, 21, 94, 113, 90, 58, 95, 137, 105, 92, 73, 90, 114, 99, 107, 71, 22, 123, 208, 107, 19, 182, 213, 32, 153, 88, 226, 82, 86, 241, 119, 1, 109, 109, 53, 0, 54, 25, 182, 14, 1, 21, 88, 171, 155, 171, 163, 203, 253, 143, 72, 174, 22, 59, 129, 36, 174, 32, 6, 48, 113, 161, 6, 80, 46, 147, 46, 177, 5, 1, 51, 77, 28, 139, 97, 32, 29, 2, 0, 55, 94, 87, 22, 86, 37, 67, 212, 288, 177, 115, 10, 1, 82, 56, 54, 109, 125, 80, 103, 22, 25, 32, 49, 101, 166, 190, 17, 4, 234, 1, 0, 34, 220, 208, 388, 19, 71, 61, 45, 31, 38, 109, 59, 18, 1, 49, 105, 68, 255, 139, 2, 45, 146, 170, 116, 43, 184, 159, 75, 346, 20, 110, 241, 29, 72, 108, 117, 101, 106, 63, 85, 30, 104, 30, 1, 0, 38, 123, 63, 81, 30, 18, 116, 222, 71, 146, 100, 14, 1, 21, 64, 78, 121, 210, 96, 289, 278, 57, 347, 21, 63, 145, 92, 84, 129, 125, 102, 298, 45, 192, 577, 92, 22, 59, 58, 99, 150, 53, 91, 71, 142, 190, 52, 83, 65, 51, 135, 55, 288, 44, 26, 259, 24, 138, 6, 5, 1, 69, 27, 168, 140, 22, 33, 155, 1, 137, 51, 83, 28, 326, 32, 51, 2, 0, 36, 105, 25, 142, 14, 1, 18, 48, 65, 74, 51, 56, 85, 1, 108, 30, 48, 74, 63, 160, 85, 2, 141, 31, 63, 217, 51, 167, 37, 2, 21, 41, 57, 129, 21, 86, 76, 35, 122, 133, 171, 216, 103, 61, 22, 59, 50, 145, 44, 26, 259, 24, 148, 6, 5, 11, 1, 0, 45, 101, 111, 124, 132, 167, 77, 185, 30, 68, 110, 100, 32, 1, 100, 106, 112, 61, 153, 120, 49, 31, 162, 124, 59, 28, 48, 96, 93, 54, 14, 1, 66, 6, 187, 111, 95, 35, 77, 31, 17, 63, 103, 1, 82, 24, 50, 100, 1, 0, 232, 0, 33, 101, 14, 30, 18, 91, 19, 6, 71, 161, 55, 20, 135, 134, 17, 199, 44, 5, 18, 251, 11, 1, 14, 167, 134, 67, 0, 34, 18, 18, 20, 20, 55, 141, 25, 59, 196, 153, 25, 55, 246, 250, 44, 37, 153, 92, 182, 16, 188, 128, 22, 23, 105, 1, 94, 64, 34, 17, 112, 100, 50, 43, 57, 32, 1, 65, 63, 87, 175, 171, 116, 88, 307, 260, 19, 24, 113, 195, 112, 1, 17, 89, 50, 76, 63, 55, 173, 105, 124, 45, 90, 83, 525, 24, 57, 528, 14, 1, 0, 33, 144, 86, 85, 75, 108, 0, 25, 21, 141, 157, 18, 156, 196, 332, 39, 389, 125, 121, 93, 181, 173, 205, 124, 93, 91, 0, 41, 122, 105, 0, 35, 431, 107, 152, 75, 106, 119, 45, 47, 0, 44, 101, 107, 0, 38, 100, 107, 95, 0, 35, 114, 108, 132, 43, 200, 12, 35, 61, 346, 48, 310, 138, 76, 82, 96, 218, 139, 117, 54, 205, 161, 183, 18, 157, 168, 40, 335, 89, 122, 9, 128, 54, 26, 152, 126, 82, 48, 42, 20, 106, 192, 57, 57, 258, 182, 113, 192, 58, 135, 171, 165, 47, 106, 176, 15, 136, 206, 51, 143, 38, 157, 47, 22, 109, 35, 23, 30, 209, 61, 4, 1, 93, 24, 51, 54, 44, 51, 52, 98, 102, 26, 40, 81, 38, 51, 61, 115, 7, 103, 584, 220, 140, 89, 96, 8, 17, 51, 245, 19, 114, 306, 8, 212, 162, 53, 34, 15, 25, 24, 70, 72, 53, 118, 155, 88, 40, 42, 230, 51, 34, 4, 120, 55, 161, 81, 40, 214, 86, 104, 219, 102, 22, 316, 230, 46, 10, 250, 5, 41, 53, 4, 1, 31, 51, 59, 131, 139, 115, 135, 1, 25, 90, 65, 55, 18, 105, 135, 161, 137, 5, 1, 24, 63, 50, 61, 104, 124, 1, 74, 54, 56, 46, 71, 94, 105, 27, 61, 67, 11, 1, 81, 34, 65, 22, 64, 113, 12, 1, 56, 92, 31, 42, 32, 99, 124, 14, 62, 19, 164, 180, 71, 3, 68, 295, 10, 114, 438, 3, 39, 150, 1, 123, 26, 67, 51, 26, 147, 63, 114, 4, 84, 139, 52, 96, 183, 83, 68, 109, 30, 100, 174, 1, 121, 34, 0, 36, 33, 11, 36, 128, 32, 105, 116, 65, 31, 150, 56, 18, 34, 110, 149, 11, 145, 104, 5, 0];
   var el=document.getElementById("app-src"),txt=el?el.textContent:"";
   try{(0,eval)(txt)}catch(e){
     var ls=txt.split("\n"),msg=e.name+": "+e.message;
