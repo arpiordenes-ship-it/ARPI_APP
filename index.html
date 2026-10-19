@@ -45,7 +45,7 @@ select,input,textarea{font:inherit;color:var(--fg);background:var(--surface);bor
 .stat{font-size:.85rem;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:5px 12px}
 .stat b{color:var(--fg);font-variant-numeric:tabular-nums}
 .stat.late b{color:var(--late)}
-.board{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;align-items:start}
+.board{display:grid;grid-template-columns:repeat(var(--cols,6),minmax(0,1fr));gap:12px;align-items:start}
 @media (max-width:1100px){.board{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:640px){.board{grid-template-columns:minmax(0,1fr)}}
 .col{display:flex;flex-direction:column;gap:8px;min-width:0}
@@ -529,7 +529,7 @@ window.addEventListener("error",function(e){window.__fallo((e.message||"Error")+
 window.addEventListener("unhandledrejection",function(e){window.__fallo("Promesa: "+((e.reason&&e.reason.message)||e.reason))});
 </script>
 <script type="text/plain" id="app-src">
-const ESTADOS=["Pendiente","Preprensa","Impresi\u00f3n","Acabados","Listo","Entregado"];
+const ESTADOS=["Pendiente","Corte","Preprensa","Impresi\u00f3n","Acabados","Listo","Entregado"];
 const PRODUCTOS=["Volantes","Tarjetas de presentaci\u00f3n","Talonarios de 50","Talonarios de 100","Facturas","Etiquetas","Cajas / plegadizas","Afiches","Pend\u00f3n","Cat\u00e1logo / revista","Sobres","Carpetas","Otro"];
 const ACABADOS=["Plastificado mate","Plastificado brillante","UV parcial","Barnizado","Intercalado","Perforado","Encaratulado","Troquelado","Semitroquelado","Repujado","Emblocado","Cocido","Plegado"];
 const TINTAS=["C","M","Y","K","Otros"];
@@ -625,7 +625,7 @@ const errMsg=e=>{const m=(e&&e.message)||"";if(/ACCESO:/.test(m))return m.split(
   return "No se guard\u00f3. Revisa la conexi\u00f3n e intenta de nuevo."+(red?"":" ("+m.slice(0,140)+")")};
 
 /* ---------- vistas extra: calendario, clientes, contadur\u00eda, alertas ---------- */
-const COLOR_ESTADO={"Pendiente":"var(--muted)","Preprensa":"var(--cyan)","Impresi\u00f3n":"var(--magenta)","Acabados":"var(--yellow)","Listo":"var(--ok)","Entregado":"var(--line)"};
+const COLOR_ESTADO={"Pendiente":"var(--muted)","Corte":"#e07b39","Preprensa":"var(--cyan)","Impresi\u00f3n":"var(--magenta)","Acabados":"var(--yellow)","Listo":"var(--ok)","Entregado":"var(--line)"};
 const hoyISO=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
 function filaOrden(o,extra){
   const late=isLate(o);
@@ -813,12 +813,12 @@ function renderRes(){
     +k("Activas ahora",fmtN(activas.length))+k("Atrasadas ahora",fmtN(atrasadas.length),atrasadas.length>0)
     +k("Entregado sin facturar",money(suma(sinFact)),sinFact.length>0);
   // órdenes por etapa
-  const etapas=ESTADOS.slice(0,5).map(e=>[e,activas.filter(o=>o.estado===e).length]),mx=Math.max(1,...etapas.map(x=>x[1]));
+  const etapas=ESTADOS.slice(0,-1).map(e=>[e,activas.filter(o=>o.estado===e).length]),mx=Math.max(1,...etapas.map(x=>x[1]));
   $("res-etapas").innerHTML=etapas.map(([e,n])=>`<div class="fila-res"><span>${e}</span><span class="barra"><i style="width:${n/mx*100}%;background:${COLOR_ESTADO[e]}"></i></span><b>${n}</b></div>`).join("");
   // tiempo en cada etapa: desde que entró hasta que pasó a otra, para las salidas que ocurrieron en el mes
   const tiempos={};
   S.orders.forEach(o=>{const p=pasos(o);for(let i=0;i<p.length-1;i++){if(!enMes(p[i+1].t))continue;const x=tiempos[p[i].e]||(tiempos[p[i].e]={t:0,n:0});x.t+=p[i+1].t-p[i].t;x.n++}});
-  $("res-tiempos").innerHTML=ESTADOS.slice(0,5).map(e=>{const x=tiempos[e];return `<div class="fila-res dos"><span>${e}${x?` <small>(${x.n})</small>`:""}</span><b>${duracion(x?x.t/x.n:null)}</b></div>`}).join("");
+  $("res-tiempos").innerHTML=ESTADOS.slice(0,-1).map(e=>{const x=tiempos[e];return `<div class="fila-res dos"><span>${e}${x?` <small>(${x.n})</small>`:""}</span><b>${duracion(x?x.t/x.n:null)}</b></div>`}).join("");
   // clientes del mes, por valor
   const porCli={};creadas.forEach(o=>{const c=(o.cliente||"Sin cliente").trim();const x=porCli[c]||(porCli[c]={n:0,v:0});x.n++;x.v+=Number(o.valor)||0});
   const cli=Object.entries(porCli).sort((a,b)=>b[1].v-a[1].v||b[1].n-a[1].n).slice(0,6);
@@ -1188,7 +1188,7 @@ function render(){
   const act=S.orders.filter(o=>o.estado!=="Entregado");
   $("stats").innerHTML=`<span class="stat">Activas <b>${act.length}</b></span><span class="stat late">Atrasadas <b>${act.filter(isLate).length}</b></span><span class="stat">Para entregar <b>${act.filter(o=>o.estado==="Listo").length}</b></span>`;
   $("stats-f").innerHTML=`<span class="stat">Activas <b>${act.length}</b></span><span class="stat">M\u00edas <b>${act.filter(o=>o.asignado===S.yo.nombre).length}</b></span><span class="stat late">Atrasadas <b>${act.filter(isLate).length}</b></span>`;
-  const cols=ger?ESTADOS:ESTADOS.slice(0,5);
+  const cols=ger?ESTADOS:ESTADOS.slice(0,-1);$("board").style.setProperty("--cols",cols.length);
   $("board").innerHTML=cols.map(st=>{
     let items=list.filter(o=>o.estado===st).sort((a,b)=>((b.urgente?1:0)-(a.urgente?1:0))||String(a.entrega||"9").localeCompare(String(b.entrega||"9")));
     if(st==="Entregado") items=items.sort((a,b)=>(b.updated||0)-(a.updated||0)).slice(0,15);
@@ -1479,7 +1479,7 @@ function confirmBack(b){
   b.dataset.armed="1";b.classList.add("armed");b.textContent="\u00bfDevolver a "+prev+"? Toca otra vez";
   setTimeout(()=>{if(b.isConnected){delete b.dataset.armed;b.classList.remove("armed");b.textContent="\u2190 "+prev}},4000);
 }
-// una orden con papel pendiente no avanza m\u00e1s all\u00e1 de Preprensa
+// una orden con papel pendiente no entra a Corte
 /* ---------- acabados y numeraci\u00f3n ---------- */
 const tieneNum=o=>Number(o.numDel)>0||Number(o.numAl)>0;
 const NUM_PASOS=["falta","numerando","hecho"];
@@ -1495,7 +1495,7 @@ function pendientesAcab(o){
 function motivoBloqueo(o,destino){
   const di=ESTADOS.indexOf(destino),oi=ESTADOS.indexOf(o.estado);
   if(di<=oi)return "";
-  if(o.faltan>0&&di>ESTADOS.indexOf("Preprensa"))return "papel";
+  if(o.faltan>0&&di>=ESTADOS.indexOf("Corte"))return "papel";
   if(di>ESTADOS.indexOf("Acabados")&&oi<=ESTADOS.indexOf("Acabados")&&pendientesAcab(o).length)return "acabados";
   return "";
 }
@@ -1569,7 +1569,7 @@ fondo(FONDO_URL,FONDO_MOVIL_URL);
 </script>
 <script>
 (function(){
-  var LENS=[0, 88, 221, 200, 39, 40, 24, 104, 23, 102, 74, 99, 109, 40, 126, 40, 103, 86, 163, 156, 103, 131, 82, 22, 110, 150, 141, 128, 134, 24, 119, 112, 34, 123, 125, 55, 168, 121, 130, 29, 100, 34, 49, 76, 13, 1, 25, 37, 21, 35, 26, 59, 68, 37, 3, 18, 1, 71, 70, 53, 107, 11, 26, 18, 85, 211, 33, 23, 128, 107, 1, 86, 23, 64, 55, 25, 63, 96, 72, 5, 1, 117, 122, 19, 54, 56, 43, 111, 155, 118, 139, 132, 138, 76, 108, 0, 88, 181, 144, 28, 23, 115, 109, 99, 247, 55, 10, 1, 23, 18, 64, 36, 39, 42, 65, 1, 0, 50, 64, 205, 382, 0, 27, 108, 25, 46, 70, 48, 18, 285, 99, 1, 0, 28, 21, 93, 60, 28, 43, 85, 90, 80, 90, 68, 27, 78, 79, 58, 35, 188, 102, 306, 12, 3, 31, 59, 96, 95, 5, 107, 111, 172, 79, 21, 185, 1, 128, 128, 90, 226, 0, 75, 20, 16, 91, 168, 56, 1, 77, 21, 33, 145, 54, 110, 59, 139, 53, 55, 62, 27, 105, 137, 72, 12, 27, 53, 133, 259, 77, 75, 139, 279, 12, 189, 61, 69, 95, 125, 158, 46, 71, 192, 49, 58, 69, 185, 7, 118, 5, 21, 1, 39, 26, 22, 228, 82, 4, 1, 28, 50, 60, 81, 32, 1, 35, 51, 77, 84, 28, 158, 32, 53, 2, 0, 0, 21, 22, 57, 103, 35, 72, 107, 60, 146, 157, 187, 43, 1, 38, 0, 44, 84, 22, 25, 72, 84, 1, 97, 154, 21, 94, 113, 90, 58, 95, 137, 105, 92, 73, 90, 114, 99, 107, 71, 22, 123, 208, 107, 19, 182, 213, 32, 153, 88, 226, 82, 86, 241, 119, 1, 109, 109, 53, 0, 54, 25, 182, 14, 1, 21, 88, 171, 155, 171, 163, 203, 253, 143, 72, 174, 22, 59, 129, 36, 174, 32, 6, 48, 113, 161, 6, 80, 46, 147, 46, 177, 5, 1, 51, 77, 28, 139, 97, 32, 29, 2, 0, 55, 94, 87, 22, 86, 37, 67, 212, 288, 177, 115, 10, 1, 82, 56, 54, 109, 125, 80, 103, 22, 25, 32, 49, 101, 166, 190, 17, 4, 234, 1, 0, 34, 220, 208, 388, 19, 71, 61, 45, 31, 38, 109, 59, 18, 1, 49, 105, 68, 255, 139, 2, 45, 146, 170, 116, 43, 184, 159, 75, 346, 20, 110, 241, 29, 72, 108, 117, 101, 106, 63, 85, 30, 129, 30, 1, 0, 38, 123, 63, 90, 30, 18, 116, 222, 71, 146, 100, 14, 1, 21, 64, 78, 112, 121, 210, 96, 289, 278, 57, 347, 21, 63, 145, 118, 86, 78, 194, 115, 84, 129, 125, 102, 298, 45, 192, 577, 92, 22, 59, 58, 99, 150, 53, 91, 71, 142, 190, 52, 83, 65, 51, 135, 55, 288, 44, 26, 259, 24, 138, 6, 5, 1, 69, 27, 168, 140, 22, 33, 155, 1, 58, 137, 51, 83, 28, 326, 32, 51, 2, 0, 36, 105, 25, 142, 14, 1, 18, 48, 65, 74, 51, 56, 85, 1, 108, 30, 48, 74, 63, 160, 85, 2, 141, 31, 63, 217, 51, 167, 37, 2, 21, 41, 57, 129, 21, 86, 76, 35, 122, 133, 171, 216, 103, 61, 22, 59, 50, 145, 44, 26, 259, 24, 148, 6, 5, 11, 1, 0, 45, 101, 111, 124, 132, 167, 77, 185, 30, 68, 110, 100, 32, 1, 100, 106, 112, 61, 153, 120, 49, 31, 162, 124, 59, 28, 48, 96, 93, 54, 14, 1, 66, 6, 187, 111, 95, 35, 77, 31, 17, 63, 103, 1, 82, 24, 50, 100, 1, 0, 232, 0, 33, 101, 14, 30, 18, 91, 19, 6, 71, 161, 55, 20, 135, 134, 17, 199, 44, 5, 18, 251, 11, 1, 14, 167, 134, 67, 0, 34, 18, 18, 20, 20, 55, 141, 25, 59, 196, 153, 25, 55, 246, 250, 44, 37, 153, 92, 182, 16, 188, 128, 22, 23, 105, 1, 94, 64, 34, 17, 112, 100, 50, 43, 57, 32, 1, 65, 63, 87, 175, 171, 116, 88, 307, 260, 19, 24, 113, 195, 112, 1, 17, 89, 50, 76, 63, 55, 173, 105, 124, 45, 90, 83, 525, 24, 57, 528, 14, 1, 0, 33, 144, 86, 85, 75, 108, 0, 25, 21, 141, 157, 18, 95, 83, 156, 196, 332, 39, 389, 125, 121, 93, 181, 173, 205, 124, 93, 91, 0, 41, 122, 105, 0, 35, 600, 107, 152, 75, 106, 119, 45, 47, 0, 44, 101, 107, 0, 38, 100, 107, 95, 0, 35, 114, 108, 132, 43, 200, 12, 35, 61, 346, 48, 375, 138, 76, 82, 96, 218, 139, 117, 54, 205, 161, 183, 18, 157, 168, 40, 335, 89, 199, 127, 9, 128, 54, 26, 152, 126, 82, 48, 42, 20, 106, 192, 57, 57, 258, 182, 113, 192, 58, 135, 171, 165, 120, 129, 104, 130, 105, 94, 101, 120, 72, 56, 34, 284, 115, 97, 142, 68, 136, 216, 51, 143, 38, 157, 47, 22, 109, 35, 23, 30, 209, 61, 4, 1, 93, 24, 51, 54, 44, 51, 52, 98, 102, 26, 40, 81, 38, 51, 61, 115, 7, 103, 584, 220, 140, 89, 96, 8, 17, 51, 245, 19, 114, 306, 8, 212, 162, 53, 34, 15, 25, 24, 70, 72, 53, 118, 155, 88, 40, 42, 230, 51, 34, 4, 120, 55, 161, 81, 40, 214, 86, 104, 219, 102, 22, 316, 230, 46, 10, 250, 5, 41, 53, 4, 1, 31, 51, 59, 131, 139, 115, 135, 1, 25, 90, 65, 55, 18, 105, 135, 161, 137, 5, 1, 24, 63, 50, 61, 104, 124, 1, 74, 54, 56, 46, 71, 94, 105, 27, 61, 67, 11, 1, 81, 34, 65, 22, 64, 113, 12, 1, 56, 92, 31, 42, 32, 99, 124, 14, 62, 19, 164, 180, 71, 3, 68, 295, 10, 114, 438, 3, 39, 150, 1, 123, 26, 67, 51, 26, 147, 63, 114, 4, 84, 139, 52, 96, 183, 83, 68, 109, 30, 100, 174, 1, 121, 34, 0, 36, 33, 11, 36, 128, 32, 105, 116, 65, 31, 150, 56, 18, 34, 110, 149, 11, 145, 104, 5, 0];
+  var LENS=[0, 96, 221, 200, 39, 40, 24, 104, 23, 102, 74, 99, 109, 40, 126, 40, 103, 86, 163, 156, 103, 131, 82, 22, 110, 150, 141, 128, 134, 24, 119, 112, 34, 123, 125, 55, 168, 121, 130, 29, 100, 34, 49, 76, 13, 1, 25, 37, 21, 35, 26, 59, 68, 37, 3, 18, 1, 71, 70, 53, 107, 11, 26, 18, 85, 211, 33, 23, 128, 107, 1, 86, 23, 64, 55, 25, 63, 96, 72, 5, 1, 117, 122, 19, 54, 56, 43, 111, 155, 118, 139, 132, 138, 76, 108, 0, 88, 199, 144, 28, 23, 115, 109, 99, 247, 55, 10, 1, 23, 18, 64, 36, 39, 42, 65, 1, 0, 50, 64, 205, 382, 0, 27, 108, 25, 46, 70, 48, 18, 285, 99, 1, 0, 28, 21, 93, 60, 28, 43, 85, 90, 80, 90, 68, 27, 78, 79, 58, 35, 188, 102, 306, 12, 3, 31, 59, 96, 95, 5, 107, 111, 172, 79, 21, 185, 1, 128, 128, 90, 226, 0, 75, 20, 16, 91, 168, 56, 1, 77, 21, 33, 145, 54, 110, 59, 139, 53, 55, 62, 27, 105, 137, 72, 12, 27, 53, 133, 259, 77, 75, 139, 279, 12, 189, 61, 69, 95, 125, 158, 46, 71, 192, 49, 58, 69, 185, 7, 118, 5, 21, 1, 39, 26, 22, 228, 82, 4, 1, 28, 50, 60, 81, 32, 1, 35, 51, 77, 84, 28, 158, 32, 53, 2, 0, 0, 21, 22, 57, 103, 35, 72, 107, 60, 146, 157, 187, 43, 1, 38, 0, 44, 84, 22, 25, 72, 84, 1, 97, 154, 21, 94, 113, 90, 58, 95, 137, 105, 92, 73, 90, 114, 99, 107, 71, 22, 124, 208, 107, 19, 182, 214, 32, 153, 88, 226, 82, 86, 241, 119, 1, 109, 109, 53, 0, 54, 25, 182, 14, 1, 21, 88, 171, 155, 171, 163, 203, 253, 143, 72, 174, 22, 59, 129, 36, 174, 32, 6, 48, 113, 161, 6, 80, 46, 147, 46, 177, 5, 1, 51, 77, 28, 139, 97, 32, 29, 2, 0, 55, 94, 87, 22, 86, 37, 67, 212, 288, 177, 115, 10, 1, 82, 56, 54, 109, 125, 80, 103, 22, 25, 32, 49, 101, 166, 190, 17, 4, 234, 1, 0, 34, 220, 208, 388, 19, 71, 61, 45, 31, 38, 109, 59, 18, 1, 49, 105, 68, 255, 139, 2, 45, 146, 170, 116, 43, 184, 159, 75, 346, 20, 110, 241, 29, 72, 108, 117, 101, 106, 63, 85, 30, 129, 30, 1, 0, 38, 123, 63, 90, 30, 18, 116, 222, 71, 146, 100, 14, 1, 21, 64, 78, 112, 121, 210, 96, 289, 278, 57, 347, 21, 63, 145, 118, 86, 78, 194, 115, 84, 129, 125, 102, 298, 45, 192, 577, 92, 22, 59, 58, 99, 150, 53, 91, 71, 142, 190, 52, 83, 65, 51, 135, 55, 288, 44, 26, 259, 24, 138, 6, 5, 1, 69, 27, 168, 140, 22, 33, 155, 1, 58, 137, 51, 83, 28, 326, 32, 51, 2, 0, 36, 105, 25, 142, 14, 1, 18, 48, 65, 74, 51, 56, 85, 1, 108, 30, 48, 74, 63, 160, 85, 2, 141, 31, 63, 217, 51, 167, 37, 2, 21, 41, 57, 129, 21, 86, 76, 35, 122, 133, 171, 216, 103, 61, 22, 59, 50, 145, 44, 26, 259, 24, 148, 6, 5, 11, 1, 0, 45, 101, 111, 124, 132, 167, 77, 185, 30, 68, 110, 100, 32, 1, 100, 106, 112, 61, 153, 120, 49, 31, 162, 124, 59, 28, 48, 96, 93, 54, 14, 1, 66, 6, 187, 111, 95, 35, 77, 31, 17, 63, 103, 1, 82, 24, 50, 100, 1, 0, 232, 0, 33, 101, 14, 30, 18, 91, 19, 6, 71, 161, 55, 20, 135, 134, 17, 199, 44, 5, 18, 251, 11, 1, 14, 167, 134, 67, 0, 34, 18, 18, 20, 20, 55, 141, 25, 59, 196, 153, 25, 55, 246, 250, 96, 37, 153, 92, 182, 16, 188, 128, 22, 23, 105, 1, 94, 64, 34, 17, 112, 100, 50, 43, 57, 32, 1, 65, 63, 87, 175, 171, 116, 88, 307, 260, 19, 24, 113, 195, 112, 1, 17, 89, 50, 76, 63, 55, 173, 105, 124, 45, 90, 83, 525, 24, 57, 528, 14, 1, 0, 33, 144, 86, 85, 75, 108, 0, 25, 21, 141, 157, 18, 95, 83, 156, 196, 332, 39, 389, 125, 121, 93, 181, 173, 205, 124, 93, 91, 0, 41, 122, 105, 0, 35, 600, 107, 152, 75, 106, 119, 45, 47, 0, 44, 101, 107, 0, 38, 100, 107, 95, 0, 35, 114, 108, 132, 43, 200, 12, 35, 61, 346, 48, 375, 138, 76, 82, 96, 218, 139, 117, 54, 205, 161, 183, 18, 157, 168, 40, 335, 89, 199, 127, 9, 128, 54, 26, 152, 126, 82, 48, 42, 20, 106, 192, 57, 57, 258, 182, 113, 192, 58, 135, 171, 165, 120, 129, 104, 130, 105, 94, 101, 120, 72, 56, 34, 284, 115, 97, 142, 68, 136, 216, 51, 143, 38, 157, 47, 22, 109, 35, 23, 30, 209, 61, 4, 1, 93, 24, 51, 54, 44, 51, 52, 98, 102, 26, 40, 81, 38, 51, 61, 115, 7, 103, 584, 220, 140, 89, 96, 8, 17, 51, 245, 19, 114, 306, 8, 212, 162, 53, 34, 15, 25, 24, 70, 72, 53, 118, 155, 88, 40, 42, 230, 51, 34, 4, 120, 55, 161, 81, 40, 214, 86, 104, 219, 102, 22, 316, 230, 46, 10, 250, 5, 41, 53, 4, 1, 31, 51, 59, 131, 139, 115, 135, 1, 25, 90, 65, 55, 18, 105, 135, 161, 137, 5, 1, 24, 63, 50, 61, 104, 124, 1, 49, 54, 56, 46, 71, 94, 105, 27, 61, 67, 11, 1, 81, 34, 65, 22, 61, 113, 12, 1, 56, 92, 31, 42, 32, 99, 124, 14, 62, 19, 164, 180, 71, 3, 68, 295, 10, 114, 438, 3, 39, 150, 1, 123, 26, 67, 51, 26, 147, 63, 114, 4, 84, 139, 52, 96, 183, 83, 68, 109, 30, 100, 174, 1, 121, 34, 0, 36, 33, 11, 36, 128, 32, 105, 116, 65, 31, 150, 56, 18, 34, 110, 149, 11, 145, 104, 5, 0];
   var el=document.getElementById("app-src"),txt=el?el.textContent:"";
   try{(0,eval)(txt)}catch(e){
     var ls=txt.split("\n"),msg=e.name+": "+e.message;

@@ -1,6 +1,6 @@
 // Hace tres cosas: que la app abra aunque no haya señal, que las versiones nuevas lleguen solas
 // y que el aparato muestre los avisos de órdenes aunque la app esté cerrada.
-const COPIA = 'ordenes-v19';
+const COPIA = 'ordenes-v20';
 const BASE = ['./', 'manifest.webmanifest', 'icono-192.png', 'icono-512.png', 'carga-logo.png', 'carga-ondas.jpg', 'carga-fondo.jpg',
   'carga-pc.jpg', 'fondo-movil.jpg'];
 // dirección del script de Google; la escribe armar-web.ps1
