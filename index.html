@@ -235,6 +235,17 @@ body.side-open .side{transform:none;box-shadow:0 0 40px rgba(0,0,0,.15)}
 .side-bottom .who{padding:0 4px}
 .side-bottom .btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%}
 #avisos[data-on="1"]{color:var(--ok);border-color:var(--ok)}
+/* arrastrar tarjetas */
+.arr-fantasma{position:fixed;left:0;top:0;z-index:30;pointer-events:none;box-shadow:0 18px 40px rgba(0,0,0,.25);opacity:.96;transition:none;margin:0}
+.arr-origen{display:none!important}
+.arr-hueco{border:2px dashed var(--cyan);border-radius:10px;background:color-mix(in srgb,var(--cyan) 8%,transparent);flex:none}
+body.arrastrando,body.arrastrando *{cursor:grabbing!important;user-select:none;-webkit-user-select:none}
+#board .col{transition:background .15s ease;border-radius:10px}
+body.arrastrando #board{align-items:stretch}
+body.arrastrando #board .col{min-height:260px;padding-bottom:40px}
+#board .col.arr-sobre{background:color-mix(in srgb,var(--cyan) 6%,transparent)}
+#board .col.arr-no{background:color-mix(in srgb,var(--late) 8%,transparent)}
+#board .card{-webkit-touch-callout:none}
 /* ventanita al generar reportes */
 .rep-aviso{position:fixed;inset:0;background:rgba(10,15,20,.5);z-index:20;display:grid;place-items:center;padding:16px}
 .rep-aviso-c{background:var(--surface);border-radius:14px;padding:22px 24px;width:min(380px,100%);text-align:center;display:flex;flex-direction:column;gap:8px;align-items:center}
@@ -1527,8 +1538,109 @@ document.addEventListener("visibilitychange",()=>{if(!document.hidden){document.
 $("buscar").oninput=e=>{S.q=e.target.value.toLowerCase();render()};
 
 /* ---------- render ---------- */
+/* ---------- arrastrar tarjetas en el tablero (solo gerentes) ----------
+   Una tarjeta se puede soltar en cualquier lugar de cualquier columna: queda en esa columna y en esa posición,
+   y así la ven todos. Las que nunca se han acomodado (nuevas o movidas con los botones) van arriba, con las
+   urgentes primero. En PC se arrastra con el mouse; en el celular, dejando el dedo quieto un momento. */
+var ARR=null;
+function ordenTablero(a,b){
+  const pa=Number(a.pos)||0,pb=Number(b.pos)||0;
+  if(!pa!==!pb)return pa?1:-1;
+  if(pa&&pb)return pa-pb;
+  return ((b.urgente?1:0)-(a.urgente?1:0))||String(a.entrega||"9").localeCompare(String(b.entrega||"9"));
+}
+function arrEmpezar(){
+  const c=ARR.card,r=c.getBoundingClientRect();
+  ARR.activo=true;ARR.dx=ARR.x-r.left;ARR.dy=ARR.y-r.top;ARR.desde=c.closest(".col").dataset.estado;
+  const g=c.cloneNode(true);g.classList.add("arr-fantasma");g.style.width=r.width+"px";g.removeAttribute("data-open");document.body.appendChild(g);ARR.g=g;
+  const h=document.createElement("div");h.className="arr-hueco";h.style.height=r.height+"px";c.after(h);ARR.h=h;
+  c.classList.add("arr-origen");document.body.classList.add("arrastrando");
+  if(navigator.vibrate&&ARR.tactil)try{navigator.vibrate(15)}catch(e){}
+  arrMover();arrAutoScroll();
+}
+function arrMover(){
+  if(!ARR||!ARR.activo)return;
+  ARR.g.style.transform=`translate(${ARR.x-ARR.dx}px,${ARR.y-ARR.dy}px) rotate(1.5deg)`;
+  // la columna bajo el puntero; si no hay ninguna justo ahí (por ejemplo debajo de una columna vacía), la más cercana
+  const bajo=document.elementFromPoint(ARR.x,ARR.y);let col=bajo&&bajo.closest("#board .col");
+  if(!col){let mejor=1e9;document.querySelectorAll("#board .col").forEach(c=>{const r=c.getBoundingClientRect();
+    const dx=Math.max(r.left-ARR.x,0,ARR.x-r.right),dy=Math.max(r.top-ARR.y,0,ARR.y-r.bottom),dist=Math.hypot(dx,dy);
+    if(dist<mejor){mejor=dist;col=c}});if(mejor>140)col=null}
+  document.querySelectorAll("#board .col.arr-sobre,#board .col.arr-no").forEach(x=>x.classList.remove("arr-sobre","arr-no"));
+  if(!col){ARR.dest=null;return}
+  const o=S.orders.find(x=>x.id===ARR.id),dest=col.dataset.estado;
+  const motivo=dest!==o.estado?motivoBloqueo(o,dest):"";
+  ARR.dest=dest;ARR.motivo=motivo;
+  col.classList.add(motivo?"arr-no":"arr-sobre");
+  if(motivo){ARR.h.hidden=true;return}
+  ARR.h.hidden=false;
+  const tarjetas=[...col.querySelectorAll(".card[data-open]:not(.arr-origen)")];
+  const antesDe=tarjetas.find(t=>{const r=t.getBoundingClientRect();return ARR.y<r.top+r.height/2});
+  if(antesDe){if(antesDe.previousElementSibling!==ARR.h)antesDe.before(ARR.h)}
+  else{const ult=tarjetas[tarjetas.length-1];if(ult){if(ult.nextElementSibling!==ARR.h)ult.after(ARR.h)}else{const vacio=col.querySelector(".empty");vacio?vacio.before(ARR.h):col.appendChild(ARR.h)}}
+}
+// cerca del borde de arriba o de abajo, la página baja o sube sola mientras se arrastra
+function arrAutoScroll(){
+  if(!ARR||!ARR.activo)return;
+  const m=70,v=ARR.y<m?-(m-ARR.y)/4:ARR.y>innerHeight-m?(ARR.y-(innerHeight-m))/4:0;
+  if(v){scrollBy(0,v);arrMover()}
+  requestAnimationFrame(arrAutoScroll);
+}
+function arrTerminar(cancelar){
+  const a=ARR;if(!a)return;ARR=null;clearTimeout(a.t);
+  if(!a.activo)return;
+  a.g.remove();document.body.classList.remove("arrastrando");
+  document.querySelectorAll("#board .col.arr-sobre,#board .col.arr-no").forEach(x=>x.classList.remove("arr-sobre","arr-no"));
+  // el clic que llega justo después de soltar no debe abrir la orden
+  ARR={recien:true};setTimeout(()=>{if(ARR&&ARR.recien)ARR=null},0);
+  const o=S.orders.find(x=>x.id===a.id);
+  if(cancelar||!o||!a.dest){a.h.remove();a.card.classList.remove("arr-origen");render();return}
+  if(a.motivo){a.h.remove();a.card.classList.remove("arr-origen");toast(a.motivo==="papel"?"No pasa a "+a.dest+": faltan "+faltaTexto(o):"No pasa a "+a.dest+": falta terminar "+pendientesAcab(o).join(", "));render();return}
+  // la columna destino en el nuevo orden, tal como quedó en pantalla
+  const col=a.h.closest(".col"),ids=[];
+  [...col.children].forEach(el=>{if(el===a.h)ids.push(a.id);else if(el.matches&&el.matches(".card[data-open]")&&el!==a.card)ids.push(el.dataset.open)});
+  a.h.remove();a.card.classList.remove("arr-origen");
+  arrGuardar(o,a.dest,ids);
+}
+async function arrGuardar(o,dest,ids){
+  const antes={estado:o.estado,pos:{}};
+  ids.forEach(id=>{const x=S.orders.find(y=>y.id===id);if(x)antes.pos[id]=x.pos});
+  const cambiaEstado=o.estado!==dest;
+  o.estado=dest;ids.forEach((id,i)=>{const x=S.orders.find(y=>y.id===id);if(x)x.pos=i+1});
+  espera(o.id);render();
+  try{const r=await api("reordenar",S.user,S.pass,o.id,dest,ids);const ultimo=llego(o.id),cur=S.orders.find(x=>x.id===o.id);
+    if(cur&&ultimo&&r&&r.orden)Object.assign(cur,r.orden);
+    if(r&&r.pos)Object.keys(r.pos).forEach(id=>{const x=S.orders.find(y=>y.id===id);if(x)x.pos=r.pos[id]});
+    if(cambiaEstado)toast(o.ot+" → "+dest);render()}
+  catch(e){llego(o.id);o.estado=antes.estado;Object.keys(antes.pos).forEach(id=>{const x=S.orders.find(y=>y.id===id);if(x)x.pos=antes.pos[id]});render();toast(errMsg(e));load(true)}
+}
+$("board").addEventListener("pointerdown",e=>{
+  if(!isGer()||e.button>0||ARR)return;
+  const c=e.target.closest(".card[data-open]");
+  if(!c||e.target.closest("button,input,select,textarea,a,label,[data-mark],[data-acab],[data-num]"))return;
+  ARR={card:c,id:c.dataset.open,x:e.clientX,y:e.clientY,x0:e.clientX,y0:e.clientY,activo:false,tactil:e.pointerType!=="mouse"};
+  if(ARR.tactil)ARR.t=setTimeout(()=>{if(ARR&&!ARR.activo&&ARR.card)arrEmpezar()},380);
+  else e.preventDefault(); // con el mouse, que no empiece a seleccionar texto al arrastrar
+});
+document.addEventListener("pointermove",e=>{
+  if(!ARR||!ARR.card)return;
+  ARR.x=e.clientX;ARR.y=e.clientY;
+  const lejos=Math.hypot(ARR.x-ARR.x0,ARR.y-ARR.y0);
+  if(!ARR.activo){
+    if(ARR.tactil){if(lejos>10){clearTimeout(ARR.t);ARR=null}return} // el dedo se movió antes de tiempo: es para desplazar la página
+    if(lejos>6)arrEmpezar();else return;
+  }
+  e.preventDefault();arrMover();
+});
+document.addEventListener("touchmove",e=>{if(ARR&&ARR.activo)e.preventDefault()},{passive:false});
+document.addEventListener("pointerup",()=>{if(ARR&&ARR.card)arrTerminar(false)});
+document.addEventListener("pointercancel",()=>{if(ARR&&ARR.card)arrTerminar(true)});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&ARR&&ARR.activo)arrTerminar(true)});
+document.addEventListener("contextmenu",e=>{if(ARR&&ARR.card&&ARR.tactil)e.preventDefault()});
+
 function render(){
   if(!S.yo)return;
+  if(ARR&&ARR.activo){ARR.pend=true;return} // mientras se arrastra una tarjeta no se redibuja el tablero
   const ger=isGer();
   let list=S.orders;
   if(!ger) list=list.filter(o=>o.estado!=="Entregado");
@@ -1543,11 +1655,11 @@ function render(){
   $("stats-f").innerHTML=`<span class="stat">Activas <b>${act.length}</b></span><span class="stat">M\u00edas <b>${act.filter(o=>o.asignado===S.yo.nombre).length}</b></span><span class="stat late">Atrasadas <b>${act.filter(isLate).length}</b></span>`;
   const cols=ger?ESTADOS:ESTADOS.slice(0,-1);$("board").style.setProperty("--cols",cols.length);
   $("board").innerHTML=cols.map(st=>{
-    let items=list.filter(o=>o.estado===st).sort((a,b)=>((b.urgente?1:0)-(a.urgente?1:0))||String(a.entrega||"9").localeCompare(String(b.entrega||"9")));
+    let items=list.filter(o=>o.estado===st).sort(ordenTablero);
     if(st==="Entregado") items=items.sort((a,b)=>(b.updated||0)-(a.updated||0)).slice(0,15);
-    return `<section class="col"><h2>${st}<span>${items.length}</span></h2>${items.length?items.map(card).join(""):`<div class="empty">Sin \u00f3rdenes</div>`}</section>`}).join("");
+    return `<section class="col" data-estado="${st}"><h2>${st}<span>${items.length}</span></h2>${items.length?items.map(card).join(""):`<div class="empty">Sin \u00f3rdenes</div>`}</section>`}).join("");
   renderOtros();
-  document.querySelectorAll("[data-open]").forEach(el=>el.onclick=e=>{if(e.target.closest("[data-adv],[data-back],[data-mark],[data-acab],[data-num]"))return;openDetail(el.dataset.open)});
+  document.querySelectorAll("[data-open]").forEach(el=>el.onclick=e=>{if(e.target.closest("[data-adv],[data-back],[data-mark],[data-acab],[data-num]"))return;if(ARR&&ARR.recien)return;openDetail(el.dataset.open)});
   document.querySelectorAll("[data-adv]").forEach(b=>b.onclick=e=>{e.stopPropagation();b.disabled=true;advance(b.dataset.adv)});
   bindMarks(document);
   bindAcab($("board"));
@@ -1808,7 +1920,7 @@ function openDetail(id){
 }
 async function move(id,estado){
   const o=S.orders.find(x=>x.id===id);if(!o)return;
-  const antes=o.estado;o.estado=estado;espera(id);render();
+  const antes=o.estado;o.estado=estado;delete o.pos;espera(id);render();
   try{const r=await apiUltimo("mv:"+id,"moveOrder",S.user,S.pass,id,estado);const ultimo=llego(id),cur=S.orders.find(x=>x.id===id);
     if(cur&&ultimo&&r&&r.orden)Object.assign(cur,r.orden);if(ultimo)toast(o.ot+" \u2192 "+((r&&r.orden&&r.orden.estado)||estado));render()}
   // si falla y no hay m\u00e1s toques en camino, vuelve a donde estaba; en todo caso se pide la verdad al servidor
@@ -1922,7 +2034,7 @@ fondo(FONDO_URL,FONDO_MOVIL_URL);
 </script>
 <script>
 (function(){
-  var LENS=[0, 96, 221, 200, 39, 40, 24, 104, 23, 102, 74, 99, 109, 40, 126, 40, 103, 86, 163, 156, 103, 131, 82, 22, 110, 150, 141, 128, 134, 24, 119, 112, 34, 123, 125, 55, 168, 121, 130, 29, 100, 34, 49, 76, 13, 1, 25, 37, 21, 35, 26, 59, 68, 37, 3, 18, 1, 71, 70, 53, 107, 11, 26, 18, 85, 211, 33, 23, 128, 107, 1, 86, 23, 64, 55, 25, 63, 96, 72, 5, 1, 117, 122, 19, 54, 56, 43, 111, 155, 118, 139, 132, 138, 76, 108, 0, 88, 199, 144, 28, 23, 115, 109, 99, 247, 55, 10, 1, 23, 18, 64, 31, 73, 39, 42, 65, 1, 0, 50, 64, 205, 382, 0, 27, 108, 25, 46, 70, 48, 18, 285, 99, 1, 0, 28, 21, 93, 60, 28, 43, 85, 90, 80, 90, 68, 27, 78, 79, 58, 35, 188, 102, 306, 12, 3, 31, 59, 96, 95, 5, 107, 111, 172, 79, 21, 185, 1, 128, 128, 90, 226, 0, 75, 20, 16, 91, 168, 56, 1, 77, 21, 33, 145, 54, 110, 59, 139, 53, 55, 62, 27, 105, 137, 72, 12, 27, 53, 133, 259, 77, 75, 139, 279, 12, 189, 61, 69, 95, 125, 158, 46, 71, 192, 49, 58, 69, 185, 7, 118, 5, 21, 1, 39, 26, 22, 228, 82, 4, 1, 28, 50, 60, 81, 32, 1, 35, 51, 77, 84, 28, 158, 32, 53, 2, 0, 0, 21, 22, 57, 103, 35, 72, 107, 60, 146, 157, 187, 43, 1, 38, 0, 44, 84, 22, 25, 72, 84, 1, 97, 154, 21, 94, 113, 90, 58, 95, 137, 105, 92, 73, 90, 114, 99, 107, 71, 22, 124, 208, 107, 19, 182, 214, 32, 153, 88, 226, 82, 86, 241, 119, 1, 109, 109, 53, 0, 47, 108, 107, 104, 85, 115, 139, 64, 246, 61, 61, 94, 78, 82, 71, 90, 86, 185, 114, 108, 27, 53, 77, 94, 185, 12, 1, 28, 64, 92, 31, 118, 47, 47, 30, 81, 68, 129, 59, 54, 94, 59, 54, 63, 60, 60, 38, 164, 181, 16, 83, 1, 90, 103, 103, 31, 54, 99, 113, 28, 126, 140, 1, 109, 27, 37, 97, 129, 161, 59, 55, 48, 132, 1, 21, 32, 113, 37, 55, 109, 93, 51, 113, 145, 65, 80, 48, 159, 50, 80, 77, 83, 250, 119, 75, 97, 232, 100, 155, 95, 124, 1, 50, 20, 53, 77, 70, 60, 134, 31, 32, 95, 258, 222, 49, 208, 152, 165, 284, 24, 33, 192, 200, 159, 33, 51, 188, 204, 193, 139, 95, 91, 10, 128, 53, 140, 116, 99, 258, 28, 275, 274, 29, 57, 103, 99, 54, 113, 1, 51, 27, 110, 190, 162, 82, 102, 145, 83, 117, 52, 136, 58, 85, 32, 1, 38, 56, 71, 27, 192, 180, 101, 53, 2, 115, 132, 146, 166, 58, 89, 99, 88, 208, 172, 129, 79, 23, 34, 88, 45, 132, 42, 6, 36, 80, 127, 49, 5, 30, 128, 1, 76, 32, 88, 210, 56, 1, 118, 58, 102, 54, 25, 182, 14, 1, 21, 88, 171, 155, 171, 163, 203, 253, 143, 72, 174, 22, 59, 129, 36, 174, 32, 6, 48, 113, 161, 6, 80, 46, 147, 46, 177, 5, 1, 51, 77, 28, 139, 97, 32, 29, 2, 0, 55, 94, 87, 22, 86, 37, 67, 212, 288, 177, 115, 10, 1, 82, 56, 54, 109, 125, 80, 103, 22, 25, 32, 49, 101, 166, 190, 17, 4, 234, 1, 0, 34, 220, 208, 394, 19, 71, 61, 45, 31, 38, 109, 59, 18, 1, 49, 105, 68, 255, 139, 2, 45, 146, 74, 90, 170, 116, 43, 184, 159, 75, 373, 20, 123, 254, 29, 72, 108, 117, 101, 106, 96, 98, 30, 129, 30, 1, 0, 38, 123, 63, 90, 30, 18, 116, 222, 71, 146, 100, 14, 1, 21, 64, 78, 112, 121, 210, 96, 289, 278, 57, 347, 21, 63, 145, 118, 86, 78, 194, 115, 84, 129, 125, 102, 298, 45, 192, 577, 92, 22, 59, 58, 99, 150, 53, 91, 71, 142, 190, 52, 83, 65, 51, 135, 55, 288, 44, 26, 259, 24, 138, 6, 5, 1, 69, 27, 168, 140, 22, 33, 155, 1, 58, 137, 51, 83, 28, 326, 32, 51, 2, 0, 36, 105, 25, 142, 14, 1, 18, 48, 65, 74, 51, 56, 85, 1, 108, 30, 48, 74, 63, 160, 85, 2, 141, 31, 63, 217, 51, 167, 37, 2, 21, 41, 57, 129, 21, 86, 76, 35, 122, 133, 171, 216, 103, 61, 22, 59, 50, 145, 44, 26, 259, 24, 148, 6, 5, 11, 1, 0, 45, 101, 111, 124, 132, 167, 77, 185, 30, 68, 110, 100, 32, 1, 100, 106, 112, 61, 153, 120, 49, 31, 162, 124, 59, 28, 48, 96, 93, 54, 14, 1, 66, 6, 187, 111, 95, 35, 77, 31, 17, 63, 103, 1, 82, 24, 50, 100, 1, 0, 232, 0, 33, 101, 14, 30, 18, 91, 19, 6, 71, 161, 55, 20, 191, 178, 17, 199, 44, 5, 18, 251, 11, 1, 14, 167, 134, 67, 0, 34, 18, 18, 20, 20, 55, 141, 25, 59, 196, 153, 25, 55, 246, 250, 96, 37, 153, 92, 182, 16, 188, 128, 22, 23, 105, 1, 94, 64, 34, 17, 112, 100, 50, 43, 57, 32, 1, 65, 63, 87, 175, 171, 116, 88, 307, 260, 19, 24, 113, 195, 112, 1, 17, 89, 50, 76, 63, 55, 173, 105, 124, 45, 90, 83, 525, 24, 57, 528, 14, 1, 0, 33, 144, 86, 85, 75, 108, 0, 25, 21, 141, 157, 18, 95, 83, 156, 196, 332, 39, 389, 125, 121, 93, 181, 173, 205, 124, 93, 91, 0, 41, 122, 105, 0, 35, 600, 107, 152, 75, 106, 119, 45, 47, 0, 44, 101, 107, 0, 38, 100, 107, 95, 0, 35, 114, 108, 132, 43, 200, 12, 35, 61, 346, 48, 375, 138, 76, 82, 96, 218, 139, 117, 54, 205, 161, 183, 18, 157, 168, 40, 335, 89, 199, 127, 9, 128, 54, 26, 152, 126, 82, 48, 42, 20, 106, 192, 57, 57, 258, 182, 113, 192, 58, 135, 171, 165, 120, 129, 104, 130, 105, 94, 101, 120, 72, 56, 34, 284, 115, 97, 142, 68, 136, 216, 51, 143, 38, 157, 47, 22, 109, 35, 23, 30, 209, 61, 4, 1, 93, 24, 51, 54, 44, 51, 52, 98, 102, 26, 40, 81, 38, 51, 61, 115, 7, 103, 584, 220, 140, 89, 96, 8, 17, 51, 245, 19, 114, 306, 8, 212, 162, 53, 34, 15, 25, 24, 70, 72, 53, 118, 155, 88, 40, 42, 230, 51, 34, 4, 120, 55, 129, 81, 40, 214, 86, 104, 219, 102, 22, 316, 230, 46, 10, 250, 5, 41, 53, 4, 1, 31, 51, 59, 131, 139, 115, 135, 1, 25, 90, 65, 55, 18, 105, 135, 161, 137, 5, 1, 24, 63, 50, 61, 104, 124, 1, 49, 54, 56, 46, 71, 94, 105, 27, 61, 67, 11, 1, 81, 34, 65, 22, 61, 113, 12, 1, 56, 92, 31, 42, 32, 99, 124, 14, 62, 19, 164, 180, 71, 3, 68, 295, 10, 114, 438, 3, 39, 150, 1, 123, 26, 67, 51, 26, 147, 63, 114, 4, 84, 139, 52, 96, 183, 83, 68, 109, 30, 100, 174, 1, 121, 34, 0, 36, 33, 11, 36, 128, 32, 105, 116, 65, 31, 206, 56, 18, 34, 110, 149, 11, 145, 104, 5, 0];
+  var LENS=[0, 96, 221, 200, 39, 40, 24, 104, 23, 102, 74, 99, 109, 40, 126, 40, 103, 86, 163, 156, 103, 131, 82, 22, 110, 150, 141, 128, 134, 24, 119, 112, 34, 123, 125, 55, 168, 121, 130, 29, 100, 34, 49, 76, 13, 1, 25, 37, 21, 35, 26, 59, 68, 37, 3, 18, 1, 71, 70, 53, 107, 11, 26, 18, 85, 211, 33, 23, 128, 107, 1, 86, 23, 64, 55, 25, 63, 96, 72, 5, 1, 117, 122, 19, 54, 56, 43, 111, 155, 118, 139, 132, 138, 76, 108, 0, 88, 199, 144, 28, 23, 115, 109, 99, 247, 55, 10, 1, 23, 18, 64, 31, 73, 39, 42, 65, 1, 0, 50, 64, 205, 382, 0, 27, 108, 25, 46, 70, 48, 18, 285, 99, 1, 0, 28, 21, 93, 60, 28, 43, 85, 90, 80, 90, 68, 27, 78, 79, 58, 35, 188, 102, 306, 12, 3, 31, 59, 96, 95, 5, 107, 111, 172, 79, 21, 185, 1, 128, 128, 90, 226, 0, 75, 20, 16, 91, 168, 56, 1, 77, 21, 33, 145, 54, 110, 59, 139, 53, 55, 62, 27, 105, 137, 72, 12, 27, 53, 133, 259, 77, 75, 139, 279, 12, 189, 61, 69, 95, 125, 158, 46, 71, 192, 49, 58, 69, 185, 7, 118, 5, 21, 1, 39, 26, 22, 228, 82, 4, 1, 28, 50, 60, 81, 32, 1, 35, 51, 77, 84, 28, 158, 32, 53, 2, 0, 0, 21, 22, 57, 103, 35, 72, 107, 60, 146, 157, 187, 43, 1, 38, 0, 44, 84, 22, 25, 72, 84, 1, 97, 154, 21, 94, 113, 90, 58, 95, 137, 105, 92, 73, 90, 114, 99, 107, 71, 22, 124, 208, 107, 19, 182, 214, 32, 153, 88, 226, 82, 86, 241, 119, 1, 109, 109, 53, 0, 47, 108, 107, 104, 85, 115, 139, 64, 246, 61, 61, 94, 78, 82, 71, 90, 86, 185, 114, 108, 27, 53, 77, 94, 185, 12, 1, 28, 64, 92, 31, 118, 47, 47, 30, 81, 68, 129, 59, 54, 94, 59, 54, 63, 60, 60, 38, 164, 181, 16, 83, 1, 90, 103, 103, 31, 54, 99, 113, 28, 126, 140, 1, 109, 27, 37, 97, 129, 161, 59, 55, 48, 132, 1, 21, 32, 113, 37, 55, 109, 93, 51, 113, 145, 65, 80, 48, 159, 50, 80, 77, 83, 250, 119, 75, 97, 232, 100, 155, 95, 124, 1, 50, 20, 53, 77, 70, 60, 134, 31, 32, 95, 258, 222, 49, 208, 152, 165, 284, 24, 33, 192, 200, 159, 33, 51, 188, 204, 193, 139, 95, 91, 10, 128, 53, 140, 116, 99, 258, 28, 275, 274, 29, 57, 103, 99, 54, 113, 1, 51, 27, 110, 190, 162, 82, 102, 145, 83, 117, 52, 136, 58, 85, 32, 1, 38, 56, 71, 27, 192, 180, 101, 53, 2, 115, 132, 146, 166, 58, 89, 99, 88, 208, 172, 129, 79, 23, 34, 88, 45, 132, 42, 6, 36, 80, 127, 49, 5, 30, 128, 1, 76, 32, 88, 210, 56, 1, 118, 58, 102, 54, 25, 182, 14, 1, 21, 88, 171, 155, 171, 163, 203, 253, 143, 72, 174, 22, 59, 129, 36, 174, 32, 6, 48, 113, 161, 6, 80, 46, 147, 46, 177, 5, 1, 51, 77, 28, 139, 97, 32, 29, 2, 0, 55, 94, 87, 22, 86, 37, 67, 212, 288, 177, 115, 10, 1, 82, 56, 54, 109, 125, 80, 103, 22, 25, 32, 49, 101, 166, 190, 17, 4, 234, 1, 0, 34, 220, 208, 394, 19, 71, 61, 45, 31, 38, 109, 59, 18, 1, 49, 105, 68, 255, 139, 2, 45, 146, 74, 90, 170, 116, 43, 184, 159, 75, 373, 20, 123, 254, 29, 72, 108, 117, 101, 106, 96, 98, 30, 129, 30, 1, 0, 38, 123, 63, 90, 30, 18, 116, 222, 71, 146, 100, 14, 1, 21, 64, 78, 112, 121, 210, 96, 289, 278, 57, 347, 21, 63, 145, 118, 86, 78, 194, 115, 84, 129, 125, 102, 298, 45, 192, 577, 92, 22, 59, 58, 99, 150, 53, 91, 71, 142, 190, 52, 83, 65, 51, 135, 55, 288, 44, 26, 259, 24, 138, 6, 5, 1, 69, 27, 168, 140, 22, 33, 155, 1, 58, 137, 51, 83, 28, 326, 32, 51, 2, 0, 36, 105, 25, 142, 14, 1, 18, 48, 65, 74, 51, 56, 85, 1, 108, 30, 48, 74, 63, 160, 85, 2, 141, 31, 63, 217, 51, 167, 37, 2, 21, 41, 57, 129, 21, 86, 76, 35, 122, 133, 171, 216, 103, 61, 22, 59, 50, 145, 44, 26, 259, 24, 148, 6, 5, 11, 1, 0, 45, 101, 111, 124, 132, 167, 77, 185, 30, 68, 110, 100, 32, 1, 100, 106, 112, 61, 153, 120, 49, 31, 162, 124, 59, 28, 48, 96, 93, 54, 14, 1, 66, 6, 187, 111, 95, 35, 77, 31, 17, 63, 103, 1, 82, 24, 50, 100, 1, 0, 232, 0, 33, 101, 14, 30, 18, 91, 19, 6, 71, 161, 55, 20, 191, 178, 17, 199, 44, 5, 18, 251, 11, 1, 14, 167, 134, 67, 0, 34, 73, 111, 108, 105, 13, 27, 48, 30, 25, 105, 1, 22, 47, 100, 155, 112, 75, 71, 29, 1, 20, 30, 88, 118, 94, 112, 117, 61, 125, 32, 66, 56, 34, 49, 38, 21, 80, 100, 78, 199, 1, 88, 25, 30, 84, 33, 39, 1, 31, 54, 22, 61, 125, 69, 68, 40, 95, 223, 69, 39, 152, 53, 27, 1, 38, 39, 82, 37, 90, 24, 124, 58, 107, 52, 181, 1, 46, 38, 47, 108, 127, 87, 91, 3, 44, 28, 34, 52, 18, 133, 40, 3, 32, 3, 98, 81, 84, 97, 94, 0, 18, 18, 105, 20, 20, 55, 141, 25, 59, 196, 153, 25, 55, 246, 250, 96, 37, 63, 92, 202, 16, 214, 128, 22, 23, 105, 1, 94, 64, 34, 17, 112, 100, 50, 43, 57, 32, 1, 65, 63, 87, 175, 171, 116, 88, 307, 260, 19, 24, 113, 195, 112, 1, 17, 89, 50, 76, 63, 55, 173, 105, 124, 45, 90, 83, 525, 24, 57, 528, 14, 1, 0, 33, 144, 86, 85, 75, 108, 0, 25, 21, 141, 157, 18, 95, 83, 156, 196, 332, 39, 389, 125, 121, 93, 181, 173, 205, 124, 93, 91, 0, 41, 122, 105, 0, 35, 600, 107, 152, 75, 106, 119, 45, 47, 0, 44, 101, 107, 0, 38, 100, 107, 95, 0, 35, 114, 108, 132, 43, 200, 12, 35, 61, 346, 48, 375, 138, 76, 82, 96, 218, 139, 117, 54, 205, 161, 183, 18, 157, 168, 40, 335, 89, 199, 127, 9, 128, 54, 26, 152, 126, 82, 48, 42, 20, 106, 192, 57, 57, 258, 182, 113, 192, 58, 135, 171, 165, 120, 129, 104, 130, 105, 94, 101, 120, 72, 56, 34, 284, 115, 97, 142, 68, 136, 216, 51, 143, 38, 157, 47, 22, 109, 35, 23, 30, 209, 61, 4, 1, 93, 24, 51, 54, 44, 51, 52, 98, 102, 26, 40, 81, 38, 51, 61, 115, 7, 103, 584, 220, 140, 89, 96, 8, 17, 51, 245, 19, 114, 306, 8, 212, 162, 53, 34, 15, 25, 24, 70, 72, 53, 118, 155, 88, 40, 42, 230, 51, 34, 4, 120, 55, 129, 81, 40, 214, 86, 104, 219, 102, 22, 316, 230, 46, 10, 250, 5, 41, 53, 4, 1, 31, 51, 72, 131, 139, 115, 135, 1, 25, 90, 65, 55, 18, 105, 135, 161, 137, 5, 1, 24, 63, 50, 61, 104, 124, 1, 49, 54, 56, 46, 71, 94, 105, 27, 61, 67, 11, 1, 81, 34, 65, 22, 61, 113, 12, 1, 56, 92, 31, 42, 32, 99, 124, 14, 62, 19, 164, 180, 71, 3, 68, 295, 10, 114, 438, 3, 39, 150, 1, 123, 26, 67, 51, 26, 147, 63, 114, 4, 84, 139, 52, 96, 183, 83, 68, 109, 30, 100, 174, 1, 121, 34, 0, 36, 33, 11, 36, 128, 32, 105, 116, 65, 31, 206, 56, 18, 34, 110, 149, 11, 145, 104, 5, 0];
   var el=document.getElementById("app-src"),txt=el?el.textContent:"";
   try{(0,eval)(txt)}catch(e){
     var ls=txt.split("\n"),msg=e.name+": "+e.message;
